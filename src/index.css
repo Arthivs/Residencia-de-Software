@@ -1,13 +1,10 @@
-/* src/index.css */
 body {
   margin: 0;
   font-family: 'Inter', sans-serif;
   background: #f8f9fa;
-  /* Removido o display:flex global para não forçar o dashboard a ficar centrado/enxuto */
   min-height: 100vh;
 }
 
-/* estilos do login (mantidos) */
 .container {
   display: flex;
   width: 800px;
@@ -24,7 +21,7 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
-  color: white; /* Cor do ícone SVG */
+  color: white; 
 }
 
 .icon svg {
