@@ -11,7 +11,7 @@ body {
   padding: 20px;
 }
 
-/* NAV (TABS) */
+
 .tabs {
   display: flex;
   gap: 25px;
@@ -22,8 +22,8 @@ body {
 
 .tab {
   display: flex;
-  align-items: center;  /* <-- Alinha ícone e texto verticalmente */
-  gap: 6px;             /* Espaço entre ícone e texto */
+  align-items: center;  
+  gap: 6px;             
   font-size: 14px;
   color: #6b6b6b;
   cursor: pointer;
@@ -33,7 +33,7 @@ body {
 }
 
 .tab i {
-  font-size: 14px; /* Garante que o ícone fique do mesmo tamanho que o texto */
+  font-size: 14px; 
 }
 
 .tab.active {
@@ -70,7 +70,7 @@ body {
   box-sizing: border-box;
 }
 
-/* Tabs */
+
 .tabs {
   display: flex;
   justify-content: flex-start;
@@ -99,14 +99,14 @@ body {
   color: #0a5bdb;
 }
 
-/* Título do formulário */
+
 .form-title {
   margin-top: 0;
   margin-bottom: 20px;
   font-size: 20px;
 }
 
-/* Formulário */
+
 .form {
   display: flex;
   flex-direction: column;
@@ -159,7 +159,7 @@ input::placeholder {
   color: #555;
 }
 
-/* Botão alinhado à direita */
+
 .actions {
   display: flex;
   justify-content: flex-end;
@@ -179,3 +179,4 @@ input::placeholder {
 .btn-primary:hover {
   background: #0847ab;
 }
+
