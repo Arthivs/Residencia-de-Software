@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Configurações - Alteração de Senha</title>
+  <link rel="stylesheet" href="stylec.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+  <header class="top-bar">
+    <div class="container">
+      <h1>Configurações</h1>
+      <p>Gerencie suas configurações de usuário</p>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="card">
+      <nav class="tabs">
+        <button class="tab active">
+          <i class="fa-solid fa-circle-info"></i> Alteração de Senha
+        </button>
+        <button class="tab">
+          <i class="fa-solid fa-user"></i> Cadastro de Usuário
+        </button>
+        <button class="tab">
+          <i class="fa-solid fa-users"></i> Administração de Usuários
+        </button>
+      </nav>
+
+      <section class="form-section">
+        <h2>Alteração de Senha</h2>
+        <form class="form">
+          <label for="senha">Senha</label>
+          <div class="input-wrapper">
+            <input type="password" id="senha" placeholder="Digite sua senha atual">
+          </div>
+
+          <label for="nova-senha">Nova senha (exatamente 8 caracteres)</label>
+          <div class="input-wrapper">
+            <input type="password" id="nova-senha" placeholder="Digite a nova senha">
+          </div>
+
+          <label for="confirmar-senha">Confirmar nova senha</label>
+          <div class="input-wrapper">
+            <input type="password" id="confirmar-senha" placeholder="Confirme a nova senha">
+          </div>
+
+          <div class="actions">
+            <button type="submit" class="btn-primary">Alterar Senha</button>
+          </div>
+        </form>
+      </section>
+    </div>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
