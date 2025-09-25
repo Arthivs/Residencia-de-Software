@@ -1,4 +1,4 @@
-/* Reset básico */
+
 body {
   margin: 0;
   font-family: Arial, sans-serif;
@@ -12,7 +12,7 @@ body {
   padding: 20px;
 }
 
-/* Barra superior */
+
 .top-bar {
   background: #0a5bdb;
   color: #fff;
@@ -31,7 +31,7 @@ body {
   opacity: 0.9;
 }
 
-/* Card principal */
+
 .card {
   background: #fff;
   border-radius: 8px;
@@ -41,10 +41,10 @@ body {
   box-sizing: border-box;
 }
 
-/* Tabs */
+
 .tabs {
   display: flex;
-  justify-content: flex-end; /* <- empurra para a direita */
+  justify-content: flex-end; 
   border-bottom: 1px solid #ddd;
   margin-bottom: 20px;
 }
@@ -69,7 +69,7 @@ body {
   color: #0a5bdb;
 }
 
-/* Formulário */
+
 .form {
   display: flex;
   flex-direction: column;
@@ -77,10 +77,10 @@ body {
 }
 
 label {
-  font-weight: 400; /* <- mais fino */
+  font-weight: 400; 
   font-size: 13px;
   margin-bottom: 4px;
-  color: #777; /* <- cor cinza */
+  color: #777; 
 }
 
 .input-wrapper {
@@ -114,7 +114,7 @@ input::placeholder {
   color: #555;
 }
 
-/* Botão e alinhamento */
+
 .actions {
   display: flex;
   justify-content: flex-end;
@@ -134,4 +134,5 @@ input::placeholder {
 .btn-primary:hover {
   background: #0847ab;
 }
+
 
