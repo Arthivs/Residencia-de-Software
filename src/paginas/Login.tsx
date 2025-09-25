@@ -18,7 +18,7 @@ export default function Login() {
   return (
     <div className="login-page">
       <div className="login-card">
-        {/* lado azul com ícone */}
+        {/*lado azul com ícone*/}
         <div className="login-left">
           <FaUserCircle className="login-icon" />
         </div>

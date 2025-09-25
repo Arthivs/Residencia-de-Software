@@ -86,7 +86,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Botão de recolher sidebar */}
+      {/*botao de recolher*/}
       <button
         className="collapse-btn"
         onClick={() => setCollapsed(!collapsed)}
@@ -95,7 +95,7 @@ export default function Dashboard() {
         {collapsed ? <FaChevronRight /> : <FaChevronLeft />}
       </button>
 
-      {/* Menu principal */}
+      {/*menu*/}
       <div className="menu">
         {!collapsed && <span className="menu-title">Menu principal</span>}
 
@@ -114,7 +114,7 @@ export default function Dashboard() {
         })}
       </div>
 
-      {/* Logout */}
+      {/*sair*/}
       <div className="logout">
         <button
           onClick={handleLogout}
