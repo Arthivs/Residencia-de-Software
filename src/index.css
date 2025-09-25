@@ -9,7 +9,6 @@ body {
   min-height: 100vh;
 }
 
-/* ... resto do seu CSS */
 .container {
   display: flex;
   width: 800px;
