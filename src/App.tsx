@@ -1,6 +1,6 @@
 import { Routes, Route } from "react-router-dom";
 import Login from "./paginas/Login";
-import DashboardLayout from "./componentes/Layout/DashboardLayout";
+import DashboardLayout from "./componentes/layout/DashboardLayout";
 import Dashboard from "./paginas/Dashboard";
 import Acoes from "./paginas/acoes";
 import Tarefas from "./paginas/tarefas";
@@ -13,7 +13,7 @@ function App() {
     <Routes>
       <Route path="/login" element={<Login />} />
       
-      {/* Layout principal com sidebar */}
+      {/*Route sidebar*/}
       <Route path="/" element={<DashboardLayout />}>
         <Route index element={<Dashboard />} />
         <Route path="dashboard" element={<Dashboard />} />
@@ -24,7 +24,7 @@ function App() {
         <Route path="assistente" element={<Assistente />} />
       </Route>
       
-      {/* Rota fallback */}
+      {/*fallback*/}
       <Route path="*" element={<Login />} />
     </Routes>
   );

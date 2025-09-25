@@ -1,13 +1,15 @@
-export default function Assistente() {
+export default function Configuracoes() {
   return (
-    <div className="pagina-container">
-      <div className="pagina-header">
-        <h2 className="destaque-azul">Assistente IA</h2>
+    <div className="p-8 max-w-7xl mx-auto">
+      <div className="mb-10">
+        <h2 className="text-blue-600 text-3xl font-semibold mb-3">
+          Assistente IA
+        </h2>
+        <p className="text-gray-600 text-base font-normal">
+          Seu assistente pessoal para ajudar nas tarefas diárias
+        </p>
       </div>
-
-      <div className="conteudo-desenvolvimento">
-        <p>Página em desenvolvimento</p>
+        <p className="text-gray-600 text-xl">Página em desenvolvimento</p>
       </div>
-    </div>
   );
 }

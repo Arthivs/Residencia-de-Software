@@ -1,14 +1,18 @@
 export default function Dashboard() {
   return (
-    <div className="dashboard-page">
-      <div className="dashboard-header">
-        <h1 className="subtle-text">Olá Parlamentar, Bem Vindo!</h1>
-        <h2 className="destaque-azul">Dashboard</h2>
-        <p className="subtle-text">Sistema de Gerenciamento de Ações do Parlamentar</p>
+    <div className="p-8 max-w-7xl mx-auto">
+      <div className="mb-10">
+        <h1 className="text-gray-600 text-xl font-normal mb-2">
+          Olá Vereador, Bem Vindo!
+        </h1>
+        <h2 className="text-blue-600 text-3xl font-semibold mb-3">
+          Dashboard
+        </h2>
+        <p className="text-gray-600 text-base font-normal">
+          Sistema de Gerenciamento de Ações do Vereador 
+        </p>
+          </div>
+        <p className="text-gray-600 text-xl">Página em desenvolvimento</p>
       </div>
-      <div className="conteudo-desenvolvimento">
-        <p>Página em desenvolvimento</p>
-      </div>
-    </div>
   );
 }
