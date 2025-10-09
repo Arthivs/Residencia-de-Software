@@ -1,0 +1,87 @@
+/* TelaCadastro.css */
+
+/* --- Estrutura geral --- */
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #f6f7fb;
+  color: #333;
+}
+
+.container {
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.card {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  margin-top: 20px;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+/* --- Título --- */
+.form-title {
+  margin-top: 0;
+  margin-bottom: 20px;
+  font-size: 20px;
+  font-weight: 600;
+  color: #000; /* preto, igual você pediu */
+}
+
+/* --- Formulário --- */
+.form-cadastro {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+}
+
+label {
+  font-weight: 400;
+  font-size: 13px;
+  margin-bottom: 4px;
+  color: #777;
+}
+
+input {
+  width: 100%;
+  padding: 10px; /* igual à primeira tela */
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+input::placeholder {
+  color: #aaa;
+  font-size: 13px;
+}
+
+/* --- Botão --- */
+.actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.btn-cadastrar {
+  background: #0a5bdb;
+  color: white;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.btn-cadastrar:hover {
+  background: #0847ab;
+}
