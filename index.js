@@ -2,12 +2,12 @@ const express = require("express");
 const pool = require("./db");
 const bcrypt = require('bcrypt'); 
 const jwt = require('jsonwebtoken'); 
-const cors = require('cors'); // NOVO: Para permitir a conexão do front-end
+const cors = require('cors'); // Para permitir a conexão do front-end
 
 const app = express();
 
-// ⚠️ CHAVE SECRETA: Altere esta string para algo complexo e MANTENHA-A EM SEGREDO!
-const JWT_SECRET = 'sua_chave_secreta_aqui'; 
+// ⚠️ CHAVE SECRETA: Sua chave aleatória e complexa
+const JWT_SECRET = '46064cd82521607a7457c6876849573dc74493945caa078a8d3357ae87cbdc8d'; 
 
 // --- MIDDLEWARES GERAIS ---
 app.use(cors()); // Permite que o front-end em outra porta acesse o backend
@@ -88,8 +88,7 @@ app.post("/login", async (req, res) => {
 // Agora a rota só pode ser acessada se o token for válido
 app.get("/usuarios", authenticateToken, async (req, res) => {
   try {
-    // Exemplo de como usar os dados do usuário autenticado:
-    // console.log("Usuário autenticado:", req.user);
+    // Acessamos o usuário autenticado via req.user, se necessário
     
     const result = await pool.query("SELECT id_usuario, nome_completo, email FROM usuarios_fake LIMIT 10");
     res.json(result.rows);

@@ -8,7 +8,7 @@ const pool = new Pool({
   user: "postgres",       // seu usuário do Postgres
   host: "localhost",
   database: "postgres",   // ou o banco que você criou
-  password: "987654321",  // Sua senha do Postgres (Ajustar se diferente)
+  password: "987654321",  // ⚠️ Sua senha do Postgres (Ajustar se diferente)
   port: 5432,
 });
 
