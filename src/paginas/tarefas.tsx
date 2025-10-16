@@ -7,7 +7,7 @@ interface Tarefa {
   titulo: string;
   descricao: string;
   data: string; // Formato: dd/mm/aaaa
-  responsavel: string;
+  responsavel: string [];
   prioridade: 'Baixa' | 'Média' | 'Alta';
   status: 'A Fazer' | 'Em andamento' | 'Concluído';
   categorias: string;
@@ -25,7 +25,7 @@ const STATUS_COLUMNS = [
 const PRIORIDADES = ['Baixa', 'Média', 'Alta'] as const;
 
 // -----------------------------------------------
-// 2. FUNÇÃO AUXILIAR: Validação e Formatação de Data
+// Função que valida e formata data
 // -----------------------------------------------
 
 const validateAndFormatDate = (input: string): string => {
@@ -46,7 +46,7 @@ const validateAndFormatDate = (input: string): string => {
 };
 
 // ===============================================
-// 3. O cartão individual
+// Cartão
 // ===============================================
 
 interface CardProps {
@@ -101,12 +101,29 @@ const TaskCard: React.FC<CardProps> = ({ tarefa, onEdit, onDelete }) => {
         <div className="flex items-center space-x-1">
             <Pencil size={14} className="text-gray-400 cursor-pointer hover:text-blue-500 mr-2" onClick={() => onEdit(tarefa)} />
                
+        {/*Parte que cuida da exibição dos ícones dos responsáveis pela tarefa*/}
+        
+        {tarefa.responsavel && tarefa.responsavel.map((nome, index) => {
+            const firstInitial = nome.trim().charAt(0).toUpperCase(); 
+            
+            const colors = ['bg-blue-300 text-blue-800', 'bg-green-300 text-green-800', 'bg-yellow-300 text-yellow-800', 'bg-red-300 text-red-800'];
+            const color = colors[index % colors.length];
 
-                {tarefa.responsavel && (
-        <span className="bg-gray-300 text-gray-700 rounded-full h-5 w-5 flex items-center justify-center font-bold text-[10px]">
-            {tarefa.responsavel.substring(0, 1).toUpperCase()}
-        </span>
-    )}
+            return (
+                <span 
+                    key={index}
+                    title={nome} 
+                    className={`
+                        ${color} rounded-full h-5 w-5 flex items-center justify-center font-bold text-[10px] 
+                        ring-2 ring-white cursor-help 
+                        hover:z-10 transition-all duration-150
+                    `}
+                    style={{ marginLeft: index > 0 ? '-8px' : '0px' }} 
+                >
+                    {firstInitial}
+                </span>
+            );
+        })}
         </div>
       </div>
     </div>
@@ -115,7 +132,7 @@ const TaskCard: React.FC<CardProps> = ({ tarefa, onEdit, onDelete }) => {
 
 
 // ===============================================
-// 4. O Pop-up lateral 
+// Modal lateral 
 // ===============================================
 
 interface ModalProps {
@@ -125,21 +142,48 @@ interface ModalProps {
   initialTask: Tarefa | null;
 }
 
+
 const TaskModal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, initialTask }) => {
   const [taskState, setTaskState] = useState<Tarefa>(initialTask || {
-    id: '', titulo: '', descricao: '', data: '', responsavel: '', prioridade: 'Média', status: 'A Fazer', categorias: ''
+    id: '', titulo: '', descricao: '', data: '', responsavel: [] , prioridade: 'Média', status: 'A Fazer', categorias: ''
   });
+
+
+  
+  const [currentResponsible, setCurrentResponsible] = useState('');
 
   useEffect(() => {
     setTaskState(initialTask || {
-      id: '', titulo: '', descricao: '', data: '', responsavel: '', prioridade: 'Média', status: 'A Fazer', categorias: ''
+      id: '', titulo: '', descricao: '', data: '',  responsavel: [] , prioridade: 'Média', status: 'A Fazer', categorias: ''
     });
+
+
+  setCurrentResponsible('');
+
   }, [initialTask, isOpen]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+  const handleAddResponsible = () => {
+        const name = currentResponsible.trim();
+        if (name && !taskState.responsavel.includes(name)) {
+            setTaskState(prev => ({ 
+                ...prev, 
+                responsavel: [...prev.responsavel, name] 
+            }));
+            setCurrentResponsible(''); 
+        }
+    };
+
+    const handleRemoveResponsible = (nameToRemove: string) => {
+        setTaskState(prev => ({
+            ...prev,
+            responsavel: prev.responsavel.filter(name => name !== nameToRemove),
+        }));
+    };
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
    
-    // Tratamento e Formatação de Data
+    
     if (name === 'data') {
         const formattedValue = validateAndFormatDate(value);
         setTaskState(prev => ({ ...prev, [name]: formattedValue }));
@@ -154,7 +198,7 @@ const TaskModal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, initialTas
    
     
     if (taskState.data.length !== 10) {
-        alert("Por favor, preencha a data no formato dd/mm/aaaa (Ex: 01/01/2024).");
+        alert("Por favor, preencha a data no formato dd/mm/aaaa (Ex: 01/01/2025).");
         return;
     }
 
@@ -170,7 +214,7 @@ const TaskModal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, initialTas
      
       
       <div
-        className={`fixed top-0 right-0 h-full w-full max-w-md bg-white shadow-2xl transition-transform duration-300 transform ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl transition-transform duration-300 transform ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
       >
         <div className="p-6 h-full flex flex-col">
             <div className="flex justify-between items-center mb-6 border-b pb-4">
@@ -194,7 +238,31 @@ const TaskModal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, initialTas
               </div>
              
               <div className="grid grid-cols-2 gap-4">
-             
+
+                
+            {taskState.responsavel.length > 0 && (
+                <div className="space-y-1 mt-3"> 
+                    <label className="block text-sm font-medium text-gray-700">Atribuídos:</label>
+                    <div className="flex flex-wrap gap-2 pt-1">
+                        {taskState.responsavel.map((name, index) => (
+                            <div 
+                                key={index} 
+                                className="flex items-center space-x-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium"
+                            >
+                                <span>{name}</span>
+                                <button 
+                                    type="button" 
+                                    onClick={() => handleRemoveResponsible(name)} 
+                                    className="text-blue-600 hover:text-blue-800"
+                                >
+                                    <X size={14} />
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
                 <div className="space-y-1">
                   <label className="block text-sm font-medium text-gray-700">Data *</label>
                   <input
@@ -208,13 +276,35 @@ const TaskModal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, initialTas
                   />
                 </div>
               
-                <div className="space-y-1">
-                  <label className="block text-sm font-medium text-gray-700">Responsável</label>
-                  <input name="responsavel" value={taskState.responsavel} onChange={handleChange} className="w-full border border-gray-300 rounded-md p-2.5 focus:ring-blue-500 focus:border-blue-500" />
-                </div>
-              </div>
              
-           
+              
+              <div className="space-y-1">
+                  <label className="block text-sm font-medium text-gray-700">Responsáveis</label>
+                  <div className="flex space-x-2">
+                      <input 
+                          value={currentResponsible} 
+                          onChange={(e) => setCurrentResponsible(e.target.value)} 
+                          onKeyDown={(e) => { 
+                              if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  handleAddResponsible();
+                              }
+                          }}
+                          className="flex-grow border border-gray-300 rounded-md p-2.5 focus:ring-blue-500 focus:border-blue-500" 
+                          placeholder="Nome para adicionar"
+                      />
+                      <button 
+                          type="button" 
+                          onClick={handleAddResponsible} 
+                          className="bg-gray-200 text-gray-700 px-3 rounded-md hover:bg-gray-300 transition duration-150"
+                      >
+                          <Plus size={16} />
+                      </button>
+                  </div>
+              </div>
+
+              
+           </div>
               <div className="space-y-1">
                 <label className="block text-sm font-medium text-gray-700">Prioridade</label>
                 <select name="prioridade" value={taskState.prioridade} onChange={handleChange} className="w-full border border-gray-300 rounded-md p-2.5 focus:ring-blue-500 focus:border-blue-500">
@@ -235,9 +325,6 @@ const TaskModal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, initialTas
                   {STATUS_COLUMNS.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
                 </select>
               </div>
-            </form>
-           
-          
             <div className="flex justify-end space-x-3 pt-4 border-t mt-auto">
                 <button type="button" onClick={onClose} className="px-5 py-2 text-gray-700 rounded-md hover:bg-gray-100">
                     Cancelar
@@ -246,6 +333,8 @@ const TaskModal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, initialTas
                     {initialTask ? 'Salvar Tarefa' : 'Criar Tarefa'}
                 </button>
             </div>
+           </form>
+
         </div>
       </div>
     </div>
@@ -254,7 +343,7 @@ const TaskModal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, initialTas
 
 
 // ===============================================
-// 5. Tarefas
+// Parte com o Kanban e as tarefas
 // ===============================================
 
 export default function Tarefas() {
@@ -314,7 +403,6 @@ export default function Tarefas() {
         <span className="text-[#114A6D] font-medium">Início</span> &gt; Gestão de Tarefas
       </p>
 
-      {/* ÁREA DO KANBAN */}
       <div className="flex space-x-6 overflow-x-auto pb-4">
         {STATUS_COLUMNS.map(column => (
           <div key={column.name} className="flex-shrink-0 w-80">
@@ -350,7 +438,7 @@ export default function Tarefas() {
         ))}
       </div>
 
-      {/* CHAMADA DO MODAL LATERAL */}
+      {/* Chamada do modal lateral */}
       <TaskModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
