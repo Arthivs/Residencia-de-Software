@@ -1,0 +1,239 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  background: #f8f9fa;
+  min-height: 100vh;
+}
+
+.container {
+  display: flex;
+  width: 800px;
+  height: 450px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  overflow: hidden;
+}
+
+.left-panel {
+  background: #0052cc;
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: white; 
+}
+
+.icon svg {
+  width: 120px;
+  height: 120px;
+}
+
+.right-panel {
+  flex: 1;
+  padding: 40px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.right-panel h2 {
+  margin: 0;
+  font-size: 1.8rem;
+  font-weight: 700;
+}
+
+.subtitle {
+  margin: 5px 0 20px;
+  font-size: 0.9rem;
+  color: #555;
+}
+
+.input-group {
+  margin-bottom: 15px;
+}
+
+.input-group input {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 1rem;
+  box-sizing: border-box;
+}
+
+.options {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 10px 0 20px;
+  font-size: 0.9rem;
+}
+
+.options a {
+  text-decoration: none;
+  color: #0052cc;
+  font-weight: 500;
+}
+
+.options a:hover {
+  text-decoration: underline;
+}
+
+.btn {
+  width: 100%;
+  padding: 12px;
+  background-color: #0052cc;
+  border: none;
+  color: white;
+  font-size: 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  position: relative;
+  overflow: hidden;
+  transition: background-color 0.3s ease;
+}
+
+.btn:hover {
+  background-color: #003d99;
+}
+
+.btn::before {
+  content: '';
+  position: absolute;
+  left: var(--mouse-x);
+  top: var(--mouse-y);
+  background-image: radial-gradient(
+    circle 120px at center,
+    rgba(255, 255, 255, 0.25),
+    transparent
+  );
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  z-index: 1;
+}
+
+.btn:hover::before {
+  opacity: 1;
+}
+
+footer {
+  margin-top: auto;
+  text-align: center;
+  font-size: 0.8rem;
+  color: #888;
+  padding-top: 20px;
+}
+
+@media (max-width: 768px) {
+  .container {
+    flex-direction: column;
+    width: 90%;
+    height: auto;
+  }
+
+  .left-panel {
+    padding: 30px;
+  }
+}
+
+/* =========================================== */
+/* CLASSES PARA PREFERÊNCIAS DO SISTEMA        */
+/* =========================================== */
+
+/* Densidade de Interface - Compacta */
+.interface-compacta .p-4 { padding: 0.75rem !important; }
+.interface-compacta .p-6 { padding: 1rem !important; }
+.interface-compacta .p-8 { padding: 1.25rem !important; }
+.interface-compacta .gap-2 { gap: 0.25rem !important; }
+.interface-compacta .gap-3 { gap: 0.5rem !important; }
+.interface-compacta .gap-4 { gap: 0.75rem !important; }
+.interface-compacta .gap-6 { gap: 1rem !important; }
+.interface-compacta .gap-8 { gap: 1.25rem !important; }
+.interface-compacta .rounded-xl { border-radius: 0.5rem !important; }
+.interface-compacta .rounded-lg { border-radius: 0.375rem !important; }
+.interface-compacta .space-y-2 > * + * { margin-top: 0.25rem !important; }
+.interface-compacta .space-y-3 > * + * { margin-top: 0.5rem !important; }
+.interface-compacta .space-y-4 > * + * { margin-top: 0.75rem !important; }
+.interface-compacta .space-y-6 > * + * { margin-top: 1rem !important; }
+.interface-compacta .space-y-8 > * + * { margin-top: 1.25rem !important; }
+
+/* Densidade de Interface - Espaçosa */
+.interface-espacosa .p-4 { padding: 1.25rem !important; }
+.interface-espacosa .p-6 { padding: 1.75rem !important; }
+.interface-espacosa .p-8 { padding: 2.25rem !important; }
+.interface-espacosa .gap-2 { gap: 0.5rem !important; }
+.interface-espacosa .gap-3 { gap: 0.75rem !important; }
+.interface-espacosa .gap-4 { gap: 1.25rem !important; }
+.interface-espacosa .gap-6 { gap: 1.75rem !important; }
+.interface-espacosa .gap-8 { gap: 2rem !important; }
+.interface-espacosa .rounded-xl { border-radius: 1rem !important; }
+.interface-espacosa .rounded-lg { border-radius: 0.75rem !important; }
+.interface-espacosa .space-y-2 > * + * { margin-top: 0.5rem !important; }
+.interface-espacosa .space-y-3 > * + * { margin-top: 0.75rem !important; }
+.interface-espacosa .space-y-4 > * + * { margin-top: 1.25rem !important; }
+.interface-espacosa .space-y-6 > * + * { margin-top: 1.75rem !important; }
+.interface-espacosa .space-y-8 > * + * { margin-top: 2rem !important; }
+
+/* Tamanho da Fonte - Pequeno */
+.fonte-pequena body { font-size: 0.875rem; }
+.fonte-pequena .text-sm { font-size: 0.75rem; }
+.fonte-pequena .text-base { font-size: 0.875rem; }
+.fonte-pequena .text-lg { font-size: 1rem; }
+.fonte-pequena .text-xl { font-size: 1.125rem; }
+.fonte-pequena .text-2xl { font-size: 1.25rem; }
+.fonte-pequena .text-3xl { font-size: 1.5rem; }
+
+/* Tamanho da Fonte - Grande */
+.fonte-grande body { font-size: 1.125rem; }
+.fonte-grande .text-sm { font-size: 1rem; }
+.fonte-grande .text-base { font-size: 1.125rem; }
+.fonte-grande .text-lg { font-size: 1.25rem; }
+.fonte-grande .text-xl { font-size: 1.5rem; }
+.fonte-grande .text-2xl { font-size: 1.75rem; }
+.fonte-grande .text-3xl { font-size: 2rem; }
+
+/* Classes para aplicar zoom */
+.interface-zoomed {
+  zoom: var(--interface-zoom, 100%);
+}
+
+/* Transições suaves para mudanças de preferência */
+.interface-compacta,
+.interface-confortavel,
+.interface-espacosa,
+.fonte-pequena,
+.fonte-media,
+.fonte-grande {
+  transition: all 0.3s ease;
+}
+
+/* Para garantir que o padding seja consistente em todos os elementos */
+.interface-compacta *,
+.interface-espacosa * {
+  transition: padding 0.3s ease, margin 0.3s ease, gap 0.3s ease;
+}
+
+/* Ajustes específicos para componentes Tailwind */
+.interface-compacta .py-3 { padding-top: 0.5rem !important; padding-bottom: 0.5rem !important; }
+.interface-compacta .py-4 { padding-top: 0.75rem !important; padding-bottom: 0.75rem !important; }
+.interface-compacta .py-6 { padding-top: 1rem !important; padding-bottom: 1rem !important; }
+
+.interface-espacosa .py-3 { padding-top: 1rem !important; padding-bottom: 1rem !important; }
+.interface-espacosa .py-4 { padding-top: 1.25rem !important; padding-bottom: 1.25rem !important; }
+.interface-espacosa .py-6 { padding-top: 1.75rem !important; padding-bottom: 1.75rem !important; }
+
+/* Para manter consistência com classes de espaçamento */
+.interface-compacta .mb-2 { margin-bottom: 0.25rem !important; }
+.interface-compacta .mb-4 { margin-bottom: 0.75rem !important; }
+.interface-compacta .mb-6 { margin-bottom: 1rem !important; }
+
+.interface-espacosa .mb-2 { margin-bottom: 0.5rem !important; }
+.interface-espacosa .mb-4 { margin-bottom: 1.25rem !important; }
+.interface-espacosa .mb-6 { margin-bottom: 1.75rem !important; }
