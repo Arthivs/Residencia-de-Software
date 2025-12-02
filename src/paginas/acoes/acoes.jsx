@@ -45,7 +45,6 @@ export default function ActionsPage() {
     if (actionData.id) {
       await updateAction(actionData.id, actionData);
     } else {
-      // Se não tem ID, é uma criação
       await createAction(actionData);
     }
   };

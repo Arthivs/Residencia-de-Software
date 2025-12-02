@@ -1,4 +1,3 @@
-// src/paginas/acoes/useactions.js - COMPLETO E ATUALIZADO
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "react-toastify";
 import { geocodeNominatim } from "./api";

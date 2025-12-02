@@ -10,7 +10,9 @@ export const bairrosCoordinates = {
   'São Conrado': { lat: -10.9385, lng: -37.0512 },
   'Centro': { lat: -10.9117, lng: -37.0678 },
   'Atalaia': { lat: -10.9589, lng: -37.0447 },
-  // expanda quando precisar
+  'Coroa do Meio': { lat: -10.9234, lng: -37.0615 },
+  'Salgado Filho': { lat: -10.9301, lng: -37.0803 },
+  'Grageru': { lat: -10.9156, lng: -37.0549 },  
 };
 
 export const getBairroCoordinatesSync = (bairroName) => {

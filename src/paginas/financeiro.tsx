@@ -1,4 +1,3 @@
-// src/paginas/Financeiro.tsx
 import { useState } from 'react';
 import { 
   Download, 

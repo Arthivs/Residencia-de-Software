@@ -1,4 +1,3 @@
-// src/conect/dashconect.tsx - VERSÃO SIMPLIFICADA
 import React, { createContext, useContext, useState, useEffect } from "react";
 
 // Tipos dos dados

@@ -1,11 +1,10 @@
-// src/paginas/acoes/modal.jsx - CORRIGIDO COM SCROLL
 import React, { useEffect, useState } from "react";
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import { X } from "lucide-react";
 import { toast } from "react-toastify";
 
-// Correção dos ícones do Leaflet
+// icons
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: "https://unpkg.com/leaflet/dist/images/marker-icon-2x.png",
@@ -133,7 +132,7 @@ export default function CreateActionModal({ onSubmit, bairrosList = [] }) {
     }
   }
 
-  // CLICOU NO MAPA
+  // Click MAPA
   const handleMapSelect = async (lat, lng) => {
     setForm((prev) => ({ ...prev, lat, lng }));
 
