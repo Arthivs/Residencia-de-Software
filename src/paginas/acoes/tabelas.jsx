@@ -1,4 +1,3 @@
-// src/paginas/acoes/tabela.jsx - ATUALIZADO COM BOTÃO EDITAR
 import React, { useState } from "react";
 import { Plus, Search, Edit, Trash2 } from "lucide-react";
 import ExportButton from "../../componentes/ExportButton";
@@ -6,7 +5,7 @@ import ExportButton from "../../componentes/ExportButton";
 export default function ActionsTable({ 
   actions = [], 
   onCreate, 
-  onEdit, // NOVA PROP
+  onEdit, 
   onDelete, 
   isLoading 
 }) {

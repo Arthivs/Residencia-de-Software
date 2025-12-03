@@ -1,4 +1,3 @@
-// src/paginas/Dashboard.tsx - COM MINI-DASHBOARDS
 import { useMemo } from "react";
 import { useDashConect } from "../conect/dashconect";
 import { useNavigate } from "react-router-dom";

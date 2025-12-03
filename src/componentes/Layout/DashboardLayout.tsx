@@ -17,7 +17,7 @@ export default function DashboardLayout() {
       }`}>
         <Outlet />
         
-        {/* Widget do Chatbot em TODAS as páginas do dashboard */}
+        {/* Widget  */}
         <ChatbotWidget 
           apiEndpoint="/api/assistant/chat"
           initialMessage="Olá! Sou seu assistente de dashboard. Posso ajudar a analisar métricas, relatórios e dados do sistema."

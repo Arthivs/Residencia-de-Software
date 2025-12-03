@@ -1,4 +1,3 @@
-// src/paginas/acoes/mapa.jsx - MAPA DE CALOR REAL
 import React, { useRef, useState, useMemo } from "react";
 import {
   MapContainer,
@@ -21,11 +20,11 @@ export default function MapView({
   const mapRef = useRef();
   const [showFilters, setShowFilters] = useState(false);
 
-  // CALCULAR DENSIDADE REAL PARA MAPA DE CALOR
+  // densidade mapa de calor
   const heatPoints = useMemo(() => {
     if (filteredActions.length === 0) return [];
     
-    // Agrupar ações por área (usando grid de 0.01 graus ~1km)
+    // Agrupa ações por área 
     const gridSize = 0.01;
     const heatMap = new Map();
     
@@ -41,7 +40,7 @@ export default function MapView({
       }
     });
     
-    // Converter para pontos de calor com intensidade baseada na contagem
+    // Converte para pontos de calor com intensidade baseada na contagem
     const points = [];
     const maxCount = Math.max(...Array.from(heatMap.values()));
     
@@ -55,7 +54,7 @@ export default function MapView({
     return points;
   }, [filteredActions]);
 
-  // CALCULAR DENSIDADE POR BAIRRO (alternativa)
+  //  Marcador bairro mapa de calor
   const heatPointsByBairro = useMemo(() => {
     if (Object.keys(bairroStats).length === 0) return [];
     
@@ -128,7 +127,7 @@ export default function MapView({
   return (
     <div className="bg-white rounded-xl shadow-lg overflow-hidden border">
 
-      {/* Cabeçalho Melhorado */}
+      {/* Cabeçalho  */}
       <div className="p-4 border-b">
         <div className="flex justify-between items-start">
           <div>
@@ -196,7 +195,7 @@ export default function MapView({
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           />
 
-          {/* 1. Pontos individuais melhorados */}
+          {/* 1. Pontos individuais */}
           {mapView === "pontos" &&
             filteredActions
               .filter(a => a.lat && a.lng)
