@@ -72,9 +72,6 @@ export default function Login() {
                   <input type="checkbox" />
                   Lembrar acesso
                 </label>
-                <a href="#" className="text-[#0057b8] hover:underline">
-                  Esqueci minha senha
-                </a>
               </div>
 
               <button
@@ -95,12 +92,6 @@ export default function Login() {
                 )}
               </button>
             </form>
-
-            <div className="mt-6 text-center text-sm text-gray-600">
-              <p>Credenciais de teste:</p>
-              <p className="font-mono text-xs mt-1">teste@exemplo.com / 123456</p>
-            </div>
-
             <footer className="mt-8 text-center text-gray-500 text-sm">
               Sistema de Gestão Política v.1.0.0 
             </footer>
