@@ -1,3 +1,4 @@
+// frontend/src/paginas/acoes/modal.jsx - VERSÃO INTEGRADA COM API
 import React, { useEffect, useState } from "react";
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
 import L from "leaflet";
@@ -29,6 +30,8 @@ export default function CreateActionModal({ onSubmit, bairrosList = [] }) {
     estado: "",
     lat: -10.9117,
     lng: -37.0678,
+    status: "planejada",
+    fotos: []
   });
 
   // Opções de tipo de ação
@@ -42,19 +45,29 @@ export default function CreateActionModal({ onSubmit, bairrosList = [] }) {
     "Outros"
   ];
 
+  // Status disponíveis
+  const statusAcao = [
+    { value: "planejada", label: "Planejada" },
+    { value: "em_andamento", label: "Em Andamento" },
+    { value: "concluida", label: "Concluída" },
+    { value: "cancelada", label: "Cancelada" }
+  ];
+
   useEffect(() => {
     const openCreateEvent = () => {
       setForm({
         titulo: "",
         descricao: "",
         tipo: "",
-        data: "",
+        data: new Date().toISOString().split('T')[0],
         endereco: "",
         bairro: "",
         cidade: "",
         estado: "",
         lat: -10.9117,
         lng: -37.0678,
+        status: "planejada",
+        fotos: []
       });
       setTipoPersonalizado("");
       setIsEditing(false);
@@ -69,13 +82,15 @@ export default function CreateActionModal({ onSubmit, bairrosList = [] }) {
         titulo: actionData.titulo || "",
         descricao: actionData.descricao || "",
         tipo: actionData.tipo || "",
-        data: actionData.data || "",
+        data: actionData.data || new Date().toISOString().split('T')[0],
         endereco: actionData.endereco || "",
         bairro: actionData.bairro || "",
         cidade: actionData.cidade || "",
         estado: actionData.estado || "",
         lat: actionData.lat || -10.9117,
         lng: actionData.lng || -37.0678,
+        status: actionData.status || "planejada",
+        fotos: actionData.fotos || []
       });
       
       if (actionData.tipo && !tiposAcao.includes(actionData.tipo)) {
@@ -167,34 +182,87 @@ export default function CreateActionModal({ onSubmit, bairrosList = [] }) {
     if (!form.titulo.trim()) return toast.error("Título obrigatório");
     if (!tipoFinal.trim()) return toast.error("Tipo da ação obrigatório");
     if (!form.bairro.trim()) return toast.error("Selecione um ponto no mapa");
+    if (!form.data) return toast.error("Data obrigatória");
 
+    // Preparar dados para envio
     const dadosEnvio = {
-      ...form,
-      tipo: tipoFinal
+      titulo: form.titulo.trim(),
+      tipo: tipoFinal,
+      descricao: form.descricao.trim(),
+      data: form.data,
+      bairro: form.bairro.trim(),
+      cidade: form.cidade.trim() || "Aracaju",
+      estado: form.estado.trim() || "SE",
+      lat: form.lat,
+      lng: form.lng,
+      endereco: form.endereco.trim(),
+      status: form.status,
+      fotos: form.fotos
     };
 
+    // Adicionar ID se for edição
     if (isEditing && editingId) {
       dadosEnvio.id = editingId;
     }
 
-    await onSubmit(dadosEnvio);
-    
-    if (isEditing) {
-      toast.success("Ação atualizada com sucesso!");
-    } else {
-      toast.success("Ação criada com sucesso!");
+    try {
+      await onSubmit(dadosEnvio);
+      
+      if (isEditing) {
+        toast.success("Ação atualizada com sucesso!");
+      } else {
+        toast.success("Ação criada com sucesso!");
+      }
+      
+      setOpen(false);
+      setTipoPersonalizado("");
+      setIsEditing(false);
+      setEditingId(null);
+      
+    } catch (error) {
+      console.error("Erro ao salvar ação:", error);
+      toast.error("Erro ao salvar ação. Tente novamente.");
     }
-    
-    setOpen(false);
-    setTipoPersonalizado("");
-    setIsEditing(false);
-    setEditingId(null);
   };
 
   const handleTipoChange = (value) => {
     setForm(prev => ({ ...prev, tipo: value }));
     if (value !== "Outros") {
       setTipoPersonalizado("");
+    }
+  };
+
+  const handleStatusChange = (value) => {
+    setForm(prev => ({ ...prev, status: value }));
+  };
+
+  // Função para selecionar bairro da lista
+  const handleBairroSelect = (bairro) => {
+    if (bairro) {
+      setForm(prev => ({ ...prev, bairro }));
+      
+      // Tentar obter coordenadas do bairro
+      const getBairroCoordinates = () => {
+        const coordenadas = {
+          "Centro": { lat: -10.9117, lng: -37.0678 },
+          "São José": { lat: -10.9275, lng: -37.0712 },
+          "Atalaia": { lat: -10.9589, lng: -37.0447 },
+          "Jardins": { lat: -10.9452, lng: -37.0728 },
+          "São Conrado": { lat: -10.9385, lng: -37.0512 },
+          "Coroa do Meio": { lat: -10.9183, lng: -37.0517 },
+          "Treze de Julho": { lat: -10.9289, lng: -37.0561 },
+          "Salgado Filho": { lat: -10.9356, lng: -37.0783 }
+        };
+        
+        return coordenadas[bairro] || { lat: -10.9117, lng: -37.0678 };
+      };
+      
+      const coords = getBairroCoordinates();
+      setForm(prev => ({ 
+        ...prev, 
+        lat: coords.lat, 
+        lng: coords.lng 
+      }));
     }
   };
 
@@ -270,23 +338,46 @@ export default function CreateActionModal({ onSubmit, bairrosList = [] }) {
             )}
           </div>
 
-          {/* Data */}
-          <div>
-            <label className="text-sm font-semibold">Data</label>
-            <input
-              type="date"
-              className="w-full border rounded p-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              value={form.data}
-              onChange={(e) =>
-                setForm({ ...form, data: e.target.value })
-              }
-            />
+          {/* Data e Status */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="text-sm font-semibold">Data *</label>
+              <input
+                type="date"
+                className="w-full border rounded p-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                value={form.data}
+                onChange={(e) =>
+                  setForm({ ...form, data: e.target.value })
+                }
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold">Status</label>
+              <select
+                className="w-full border rounded p-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                value={form.status}
+                onChange={(e) => handleStatusChange(e.target.value)}
+              >
+                {statusAcao.map((status) => (
+                  <option key={status.value} value={status.value}>
+                    {status.label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {/* Mapa com altura fixa */}
           <div>
-            <label className="text-sm font-semibold mb-2 block">Localização *</label>
-            <div className="h-48 border rounded overflow-hidden">
+            <div className="flex justify-between items-center mb-2">
+              <label className="text-sm font-semibold">Localização *</label>
+              <div className="text-xs text-gray-500">
+                Clique no mapa ou selecione bairro abaixo
+              </div>
+            </div>
+            
+            <div className="h-48 border rounded overflow-hidden mb-2">
               <MapContainer
                 center={[form.lat, form.lng]}
                 zoom={13}
@@ -297,9 +388,27 @@ export default function CreateActionModal({ onSubmit, bairrosList = [] }) {
                 <Marker position={[form.lat, form.lng]} />
               </MapContainer>
             </div>
-            <p className="text-xs text-gray-500 mt-1">
-              Clique no mapa para selecionar a localização
-            </p>
+
+            {/* Seletor de bairro rápido */}
+            {bairrosList.length > 0 && (
+              <div className="mb-2">
+                <label className="text-sm text-gray-600 mb-1 block">
+                  Ou selecione um bairro conhecido:
+                </label>
+                <div className="flex flex-wrap gap-1">
+                  {bairrosList.slice(0, 5).map((bairro) => (
+                    <button
+                      key={bairro}
+                      type="button"
+                      onClick={() => handleBairroSelect(bairro)}
+                      className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded border"
+                    >
+                      {bairro}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Informações automáticas */}
@@ -342,6 +451,34 @@ export default function CreateActionModal({ onSubmit, bairrosList = [] }) {
             </div>
           </div>
 
+          {/* Coordenadas */}
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-sm">Latitude</label>
+              <input
+                type="number"
+                step="any"
+                className="w-full border rounded p-2"
+                value={form.lat}
+                onChange={(e) =>
+                  setForm({ ...form, lat: parseFloat(e.target.value) || 0 })
+                }
+              />
+            </div>
+            <div>
+              <label className="text-sm">Longitude</label>
+              <input
+                type="number"
+                step="any"
+                className="w-full border rounded p-2"
+                value={form.lng}
+                onChange={(e) =>
+                  setForm({ ...form, lng: parseFloat(e.target.value) || 0 })
+                }
+              />
+            </div>
+          </div>
+
           {/* Descrição */}
           <div>
             <label className="text-sm font-semibold">Descrição</label>
@@ -359,19 +496,26 @@ export default function CreateActionModal({ onSubmit, bairrosList = [] }) {
 
         {/* Footer fixo com botões */}
         <div className="flex-shrink-0 p-4 border-t bg-gray-50">
-          <div className="flex justify-end gap-2">
-            <button
-              className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-100 transition-colors"
-              onClick={() => setOpen(false)}
-            >
-              Cancelar
-            </button>
-            <button
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-              onClick={handleSubmit}
-            >
-              {isEditing ? "Atualizar Ação" : "Criar Ação"}
-            </button>
+          <div className="flex justify-between items-center">
+            <div className="text-xs text-gray-500">
+              {isEditing ? "Editando ação existente" : "Criando nova ação"}
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-100 transition-colors"
+                onClick={() => setOpen(false)}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                onClick={handleSubmit}
+              >
+                {isEditing ? "Atualizar Ação" : "Criar Ação"}
+              </button>
+            </div>
           </div>
         </div>
       </div>

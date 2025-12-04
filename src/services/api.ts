@@ -1,113 +1,209 @@
-// src/services/api.ts - CORRIGIDO
-const API_BASE_URL = 'http://localhost:3001/api';
+// frontend/src/services/api.ts - VERSÃO ATUALIZADA
+import apiClient from './apiClient';
 
-// Serviço de Tarefas
+// Interfaces atualizadas para corresponder ao backend
+export interface Tarefa {
+  id: number;
+  titulo: string;
+  descricao?: string;
+  data: string;  // Campo data adicionado
+  responsavel: string | string[];  // Pode ser string ou array
+  prioridade: string;
+  status: string;
+  data_criacao: string;
+  categorias?: string | string[];  // Pode ser string ou array
+  progresso?: number;
+  id_usuario?: string;
+}
+
+export interface Acao {
+  id: number;
+  titulo: string;
+  tipo: string;
+  descricao?: string;
+  data: string;
+  bairro: string;
+  cidade: string;
+  estado: string;
+  lat: number;
+  lng: number;
+  endereco?: string;
+  data_criacao: string;
+  fotos?: string[];
+  status: string;
+  id_usuario?: string;
+}
+
+export interface RegistroFinanceiro {
+  id: number;
+  data: string;
+  descricao: string;
+  categoria: string;
+  valor: number;
+  tipo: string;
+  forma_pagamento: string;
+  comprovante?: string;
+  data_criacao: string;
+  tags?: string[];
+  id_usuario?: string;
+}
+
+// TAREFAS SERVICE ATUALIZADO
 export const tarefasService = {
-  async getAll() {
-    const response = await fetch(`${API_BASE_URL}/tarefas`);
-    if (!response.ok) throw new Error('Erro ao buscar tarefas');
-    return response.json();
+  async getAll(): Promise<Tarefa[]> {
+    try {
+      const response = await apiClient.get('/api/tarefas');
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao buscar tarefas:', error);
+      return [];
+    }
   },
 
-  async create(tarefa: any) {
-    const response = await fetch(`${API_BASE_URL}/tarefas`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(tarefa)
-    });
-    if (!response.ok) throw new Error('Erro ao criar tarefa');
-    return response.json();
+  async create(tarefaData: Omit<Tarefa, 'id' | 'data_criacao'>): Promise<Tarefa> {
+    try {
+      // Converter arrays para strings se necessário
+      const dataToSend = {
+        ...tarefaData,
+        responsavel: Array.isArray(tarefaData.responsavel) 
+          ? JSON.stringify(tarefaData.responsavel)
+          : tarefaData.responsavel,
+        categorias: Array.isArray(tarefaData.categorias)
+          ? tarefaData.categorias.join(', ')
+          : tarefaData.categorias || ''
+      };
+      
+      const response = await apiClient.post('/api/tarefas', dataToSend);
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao criar tarefa:', error);
+      throw error;
+    }
   },
 
-  async update(id: string, tarefa: any) {
-    const response = await fetch(`${API_BASE_URL}/tarefas/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(tarefa)
-    });
-    if (!response.ok) throw new Error('Erro ao atualizar tarefa');
-    return response.json();
+  async update(id: number, updates: Partial<Tarefa>): Promise<Tarefa> {
+    try {
+      // Converter arrays para strings se necessário
+      const updatesToSend: any = { ...updates };
+      
+      if (updates.responsavel && Array.isArray(updates.responsavel)) {
+        updatesToSend.responsavel = JSON.stringify(updates.responsavel);
+      }
+      
+      if (updates.categorias && Array.isArray(updates.categorias)) {
+        updatesToSend.categorias = updates.categorias.join(', ');
+      }
+      
+      const response = await apiClient.put(`/api/tarefas/${id}`, updatesToSend);
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao atualizar tarefa:', error);
+      throw error;
+    }
   },
 
-  async delete(id: string) {
-    const response = await fetch(`${API_BASE_URL}/tarefas/${id}`, {
-      method: 'DELETE'
-    });
-    if (!response.ok) throw new Error('Erro ao excluir tarefa');
-    return response.json();
+  async delete(id: number): Promise<void> {
+    try {
+      await apiClient.delete(`/api/tarefas/${id}`);
+    } catch (error) {
+      console.error('Erro ao excluir tarefa:', error);
+      throw error;
+    }
   }
 };
 
-// Serviço de Ações
+// AÇÕES SERVICE - MANTIDO
 export const acoesService = {
-  async getAll() {
-    const response = await fetch(`${API_BASE_URL}/acoes`);
-    if (!response.ok) throw new Error('Erro ao buscar ações');
-    return response.json();
+  async getAll(): Promise<Acao[]> {
+    try {
+      const response = await apiClient.get('/api/acoes');
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao buscar ações:', error);
+      return [];
+    }
   },
 
-  async create(acao: any) {
-    const response = await fetch(`${API_BASE_URL}/acoes`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(acao)
-    });
-    if (!response.ok) throw new Error('Erro ao criar ação');
-    return response.json();
+  async create(acaoData: Omit<Acao, 'id' | 'data_criacao'>): Promise<Acao> {
+    try {
+      const response = await apiClient.post('/api/acoes', acaoData);
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao criar ação:', error);
+      throw error;
+    }
   },
 
-  async delete(id: string) {
-    const response = await fetch(`${API_BASE_URL}/acoes/${id}`, {
-      method: 'DELETE'
-    });
-    if (!response.ok) throw new Error('Erro ao excluir ação');
-    return response.json();
+  async update(id: number, updates: Partial<Acao>): Promise<Acao> {
+    try {
+      const response = await apiClient.put(`/api/acoes/${id}`, updates);
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao atualizar ação:', error);
+      throw error;
+    }
+  },
+
+  async delete(id: number): Promise<void> {
+    try {
+      await apiClient.delete(`/api/acoes/${id}`);
+    } catch (error) {
+      console.error('Erro ao excluir ação:', error);
+      throw error;
+    }
   }
 };
 
-// Serviço Financeiro
+// FINANCEIRO SERVICE - MANTIDO
 export const financeiroService = {
-  async getAll() {
-    const response = await fetch(`${API_BASE_URL}/financeiro`);
-    if (!response.ok) throw new Error('Erro ao buscar registros financeiros');
-    return response.json();
+  async getAll(): Promise<RegistroFinanceiro[]> {
+    try {
+      const response = await apiClient.get('/api/financeiro');
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao buscar financeiro:', error);
+      return [];
+    }
   },
 
-  async create(registro: any) {
-    const response = await fetch(`${API_BASE_URL}/financeiro`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(registro)
-    });
-    if (!response.ok) throw new Error('Erro ao criar registro financeiro');
-    return response.json();
+  async create(registroData: Omit<RegistroFinanceiro, 'id' | 'data_criacao'>): Promise<RegistroFinanceiro> {
+    try {
+      const response = await apiClient.post('/api/financeiro', registroData);
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao criar registro financeiro:', error);
+      throw error;
+    }
   },
 
-  async delete(id: string) {
-    const response = await fetch(`${API_BASE_URL}/financeiro/${id}`, {
-      method: 'DELETE'
-    });
-    if (!response.ok) throw new Error('Erro ao excluir registro financeiro');
-    return response.json();
+  async delete(id: number): Promise<void> {
+    try {
+      await apiClient.delete(`/api/financeiro/${id}`);
+    } catch (error) {
+      console.error('Erro ao excluir registro financeiro:', error);
+      throw error;
+    }
   }
 };
 
-// Serviço de Dashboard (dados consolidados)
+// DASHBOARD SERVICE
 export const dashboardService = {
-  async getResumo() {
-    const response = await fetch(`${API_BASE_URL}/dashboard/resumo`);
-    if (!response.ok) throw new Error('Erro ao buscar resumo do dashboard');
-    return response.json();
-  },
-
-  async getMetricas() {
-    const response = await fetch(`${API_BASE_URL}/dashboard/metricas`);
-    if (!response.ok) throw new Error('Erro ao buscar métricas');
-    return response.json();
+  async getDashboardData(): Promise<any> {
+    try {
+      const response = await apiClient.get('/api/dashboard');
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao buscar dashboard:', error);
+      return {
+        tarefas: [],
+        financeiro: [],
+        estatisticas: {}
+      };
+    }
   }
 };
 
-// Exportação do apiService (se necessário)
+// Exportação consolidada
 export const apiService = {
   tarefas: tarefasService,
   acoes: acoesService,
@@ -115,5 +211,4 @@ export const apiService = {
   dashboard: dashboardService
 };
 
-// Exportação padrão também
 export default apiService;

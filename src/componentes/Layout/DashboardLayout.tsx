@@ -1,15 +1,21 @@
+// frontend/src/componentes/Layout/DashboardLayout.tsx
 import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import Sidebar from "../sidebar";
 import ChatbotWidget from "../ChatbotWidget";
+import { useDashConect } from "../../conect/dashconect";
+
 export default function DashboardLayout() {
   const [collapsed, setCollapsed] = useState(false);
+  const { user } = useDashConect();
 
   return (
     <div className="flex min-h-screen">
       <Sidebar 
         collapsed={collapsed} 
-        onToggle={() => setCollapsed(!collapsed)} 
+        onToggle={() => setCollapsed(!collapsed)}
+        userName={user?.nome}
+        userEmail={user?.email}
       />
       
       <main className={`flex-1 bg-gray-50 min-h-screen transition-all duration-300 ${
@@ -17,7 +23,7 @@ export default function DashboardLayout() {
       }`}>
         <Outlet />
         
-        {/* Widget  */}
+        {/* Widget do Chatbot */}
         <ChatbotWidget 
           apiEndpoint="/api/assistant/chat"
           initialMessage="Olá! Sou seu assistente de dashboard. Posso ajudar a analisar métricas, relatórios e dados do sistema."

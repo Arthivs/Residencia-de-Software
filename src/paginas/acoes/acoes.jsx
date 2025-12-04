@@ -1,16 +1,263 @@
-import React, { Suspense, lazy } from "react";
+import React, { Suspense, lazy, useEffect, useState } from "react";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-
-import useActions from "./useactions";
+import { useDashConect } from "@/conect/dashconect"; // ← USAR ALIAS @
+import { apiService } from "@/services/api"; // ← USAR ALIAS @
 import Header from "./Header";
 import ExportButton from "../../componentes/ExportButton";
+
 
 // componentes da pasta /acoes
 const MapView = lazy(() => import("./mapa"));
 const ActionsTable = lazy(() => import("./tabelas"));
 const AnalyticsDashboard = lazy(() => import("./analisedash"));
 const CreateActionModal = lazy(() => import("./modal"));
+
+// Hook useActions integrado
+function useActionsIntegrated() {
+  const { data, atualizarAcoes } = useDashConect();
+  const [actions, setActions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedType, setSelectedType] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [mapView, setMapView] = useState("pontos");
+  const [activeView, setActiveView] = useState("map");
+  const [showFilters, setShowFilters] = useState(true);
+  const [bairrosList, setBairrosList] = useState([]);
+
+  // Carregar dados
+  useEffect(() => {
+    const fetchActions = async () => {
+      try {
+        setLoading(true);
+        const acoesData = await apiService.acoes.getAll();
+        
+        // Converter para formato UI
+        const actionsUI = acoesData.map((a) => ({
+          id: a.id.toString(),
+          titulo: a.titulo,
+          tipo: a.tipo,
+          descricao: a.descricao,
+          data: a.data,
+          bairro: a.bairro,
+          cidade: a.cidade,
+          estado: a.estado,
+          lat: a.lat,
+          lng: a.lng,
+          endereco: a.endereco,
+          dataCriacao: new Date(a.data_criacao),
+          fotos: Array.isArray(a.fotos) ? a.fotos : [],
+          status: a.status || "planejada"
+        }));
+        
+        setActions(actionsUI);
+        
+        // Atualizar contexto
+        const acoesContexto = actionsUI.map(a => ({
+          id: a.id,
+          titulo: a.titulo,
+          tipo: a.tipo,
+          descricao: a.descricao,
+          data: a.data,
+          bairro: a.bairro,
+          cidade: a.cidade,
+          estado: a.estado,
+          lat: a.lat,
+          lng: a.lng,
+          endereco: a.endereco,
+          dataCriacao: a.dataCriacao,
+          fotos: a.fotos,
+          status: a.status
+        }));
+        
+        atualizarAcoes(acoesContexto);
+        
+        // Atualizar lista de bairros
+        const bairros = [...new Set(acoesData.map((a) => a.bairro).filter(Boolean))].sort();
+        setBairrosList(bairros);
+        
+      } catch (error) {
+        console.error("Erro ao carregar ações:", error);
+        // Usar dados do contexto como fallback
+        const contextData = data.acoes.map((a) => ({
+          id: a.id,
+          titulo: a.titulo,
+          tipo: a.tipo,
+          descricao: a.descricao,
+          data: a.data,
+          bairro: a.bairro,
+          cidade: a.cidade,
+          estado: a.estado,
+          lat: a.lat,
+          lng: a.lng,
+          endereco: a.endereco,
+          dataCriacao: a.dataCriacao,
+          fotos: a.fotos || [],
+          status: a.status
+        }));
+        setActions(contextData);
+        
+        const bairros = [...new Set(contextData.map((a) => a.bairro).filter(Boolean))].sort();
+        setBairrosList(bairros);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchActions();
+  }, [data.acoes, atualizarAcoes]);
+
+  // Criar ação
+  const createAction = async (payload) => {
+    try {
+      const acaoCriada = await apiService.acoes.create({
+        titulo: payload.titulo,
+        tipo: payload.tipo,
+        descricao: payload.descricao,
+        data: payload.data,
+        bairro: payload.bairro,
+        cidade: payload.cidade,
+        estado: payload.estado,
+        lat: payload.lat || 0,
+        lng: payload.lng || 0,
+        endereco: payload.endereco,
+        fotos: payload.fotos || [],
+        status: payload.status || "planejada"
+      });
+
+      const novaAcao = {
+        id: acaoCriada.id.toString(),
+        titulo: acaoCriada.titulo,
+        tipo: acaoCriada.tipo,
+        descricao: acaoCriada.descricao,
+        data: acaoCriada.data,
+        bairro: acaoCriada.bairro,
+        cidade: acaoCriada.cidade,
+        estado: acaoCriada.estado,
+        lat: acaoCriada.lat,
+        lng: acaoCriada.lng,
+        endereco: acaoCriada.endereco,
+        dataCriacao: new Date(acaoCriada.data_criacao),
+        fotos: Array.isArray(acaoCriada.fotos) ? acaoCriada.fotos : [],
+        status: acaoCriada.status
+      };
+
+      setActions(prev => [novaAcao, ...prev]);
+      
+      // Atualizar lista de bairros
+      if (novaAcao.bairro && !bairrosList.includes(novaAcao.bairro)) {
+        setBairrosList(prev => [...prev, novaAcao.bairro].sort());
+      }
+
+      return novaAcao;
+    } catch (error) {
+      console.error("Erro ao criar ação:", error);
+      throw error;
+    }
+  };
+
+  // Atualizar ação
+  const updateAction = async (id, updatedData) => {
+    try {
+      const acaoAtualizada = await apiService.acoes.update(parseInt(id), updatedData);
+
+      const acaoUI = {
+        id: acaoAtualizada.id.toString(),
+        titulo: acaoAtualizada.titulo,
+        tipo: acaoAtualizada.tipo,
+        descricao: acaoAtualizada.descricao,
+        data: acaoAtualizada.data,
+        bairro: acaoAtualizada.bairro,
+        cidade: acaoAtualizada.cidade,
+        estado: acaoAtualizada.estado,
+        lat: acaoAtualizada.lat,
+        lng: acaoAtualizada.lng,
+        endereco: acaoAtualizada.endereco,
+        dataCriacao: new Date(acaoAtualizada.data_criacao),
+        fotos: Array.isArray(acaoAtualizada.fotos) ? acaoAtualizada.fotos : [],
+        status: acaoAtualizada.status
+      };
+
+      setActions(prev =>
+        prev.map((action) =>
+          action.id === id ? { ...action, ...acaoUI } : action
+        )
+      );
+
+      return acaoUI;
+    } catch (error) {
+      console.error("Erro ao atualizar ação:", error);
+      throw error;
+    }
+  };
+
+  // Excluir ação
+  const deleteAction = async (id) => {
+    if (!confirm("Tem certeza que deseja excluir esta ação?")) return;
+
+    try {
+      await apiService.acoes.delete(parseInt(id));
+      setActions(prev => prev.filter((a) => a.id !== id));
+    } catch (error) {
+      console.error("Erro ao excluir ação:", error);
+      throw error;
+    }
+  };
+
+  // Filtro de ações
+  const q = (searchTerm || "").toLowerCase();
+
+  const filteredActions = actions.filter((a) => {
+    const matchesType = !selectedType || a.tipo === selectedType;
+    const matchesSearch =
+      !q ||
+      (a.bairro || "").toLowerCase().includes(q) ||
+      (a.tipo || "").toLowerCase().includes(q) ||
+      (a.titulo || "").toLowerCase().includes(q) ||
+      (a.descricao || "").toLowerCase().includes(q);
+
+    return matchesType && matchesSearch;
+  });
+
+  // Estatísticas por bairro
+  const bairroStats = filteredActions.reduce((acc, action) => {
+    const key = action.bairro || "Sem Bairro";
+
+    if (!acc[key]) {
+      acc[key] = {
+        bairro: action.bairro,
+        lat: action.lat,
+        lng: action.lng,
+        count: 0,
+      };
+    }
+
+    acc[key].count++;
+
+    return acc;
+  }, {});
+
+  return {
+    actions,
+    loading,
+    createAction,
+    updateAction,
+    deleteAction,
+    filteredActions,
+    bairroStats,
+    selectedType,
+    setSelectedType,
+    searchTerm,
+    setSearchTerm,
+    mapView,
+    setMapView,
+    activeView,
+    setActiveView,
+    showFilters,
+    setShowFilters,
+    bairrosList,
+  };
+}
 
 export default function ActionsPage() {
   const {
@@ -30,7 +277,7 @@ export default function ActionsPage() {
     activeView,
     setActiveView,
     bairrosList,
-  } = useActions();
+  } = useActionsIntegrated();
 
   // Função para abrir modal de edição
   const handleEditAction = (action) => {
@@ -39,13 +286,17 @@ export default function ActionsPage() {
     }));
   };
 
-  // Função para atualizar ação (integra com useActions)
+  // Função para atualizar ação
   const handleUpdateAction = async (actionData) => {
-    // Se a ação tem ID, é uma atualização
-    if (actionData.id) {
-      await updateAction(actionData.id, actionData);
-    } else {
-      await createAction(actionData);
+    try {
+      if (actionData.id) {
+        await updateAction(actionData.id, actionData);
+      } else {
+        await createAction(actionData);
+      }
+    } catch (error) {
+      console.error("Erro ao salvar ação:", error);
+      alert("Erro ao salvar ação. Tente novamente.");
     }
   };
 
@@ -65,7 +316,6 @@ export default function ActionsPage() {
       />
 
       <div className="max-w-7xl mx-auto p-4 lg:p-6 space-y-6">
-
         {/* FILTROS */}
         <div className="bg-white rounded-xl shadow p-4">
           <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
@@ -89,7 +339,6 @@ export default function ActionsPage() {
                   </option>
                 ))}
               </select>
-
             </div>
             <div className="flex gap-2">
               <ExportButton 
@@ -102,7 +351,7 @@ export default function ActionsPage() {
         </div>
 
         {/* MAPA */}
-        <Suspense fallback={<div>Carregando mapa...</div>}>
+        <Suspense fallback={<div className="p-8 text-center">Carregando mapa...</div>}>
           {activeView === "map" && (
             <MapView
               mapView={mapView}
@@ -117,7 +366,7 @@ export default function ActionsPage() {
         </Suspense>
 
         {/* Desempenho */}
-        <Suspense fallback={<div>Carregando análises...</div>}>
+        <Suspense fallback={<div className="p-8 text-center">Carregando análises...</div>}>
           {activeView === "analytics" && (
             <AnalyticsDashboard
               filteredActions={filteredActions}
@@ -126,8 +375,8 @@ export default function ActionsPage() {
           )}
         </Suspense>
 
-        {/* TABELA - ATUALIZADA COM onEdit */}
-        <Suspense fallback={<div>Carregando tabela...</div>}>
+        {/* TABELA */}
+        <Suspense fallback={<div className="p-8 text-center">Carregando tabela...</div>}>
           <ActionsTable
             actions={filteredActions}
             onCreate={() =>
@@ -140,7 +389,7 @@ export default function ActionsPage() {
         </Suspense>
       </div>
 
-      {/* MODAL - ATUALIZADO COM SUPORTE A EDIÇÃO */}
+      {/* MODAL */}
       <Suspense fallback={null}>
         <CreateActionModal 
           onSubmit={handleUpdateAction} 

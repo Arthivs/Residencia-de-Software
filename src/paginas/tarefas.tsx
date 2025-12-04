@@ -1,30 +1,24 @@
+// frontend/src/paginas/tarefas.tsx - VERSÃO FINAL CORRIGIDA
 import React, { useState, useEffect } from 'react';
 import { Plus, X, Pencil, Trash2, Calendar, User, Tag, AlertCircle } from 'lucide-react';
 import { FaTasks } from 'react-icons/fa';
+import { useDashConect } from '../conect/dashconect';
+import { apiService } from '../services/api';
+import type { Tarefa as ApiTarefa } from '../services/api';
 
-interface Tarefa {
+// Interface compatível com API
+interface TarefaUI {
   id: string;
   titulo: string;
-  descricao: string;
-  data: string; // Formato: dd/mm/aaaa
+  descricao?: string;
+  data: string; // Formato: yyyy-mm-dd
   responsavel: string[];
   prioridade: 'Baixa' | 'Média' | 'Alta';
   status: 'A Fazer' | 'Em andamento' | 'Concluído';
-  categorias: string;
+  categorias: string[];
+  dataCriacao?: Date;
+  progresso?: number;
 }
-
-const initialTasks: Tarefa[] = [
-  {
-    id: '1',
-    titulo: 'Tarefa de Exemplo',
-    descricao: 'Esta é uma tarefa de exemplo',
-    data: '15/12/2024',
-    responsavel: ['João Silva'],
-    prioridade: 'Média',
-    status: 'A Fazer',
-    categorias: 'Exemplo, Teste'
-  }
-];
 
 const STATUS_COLUMNS = [
   { name: 'A Fazer', color: 'bg-[#0057B7]' },
@@ -34,12 +28,10 @@ const STATUS_COLUMNS = [
 
 const PRIORIDADES = ['Baixa', 'Média', 'Alta'] as const;
 
-
-// Cartão com arraste 
-
+// Componente Card com arraste
 interface CardProps {
-  tarefa: Tarefa;
-  onEdit: (task: Tarefa) => void;
+  tarefa: TarefaUI;
+  onEdit: (task: TarefaUI) => void;
   onDelete: (id: string) => void;
   onDragStart: (taskId: string) => void;
 }
@@ -49,7 +41,6 @@ const TaskCard: React.FC<CardProps> = ({ tarefa, onEdit, onDelete, onDragStart }
                         tarefa.prioridade === 'Média' ? 'bg-yellow-200 text-yellow-800' :
                         'bg-gray-200 text-gray-800';
 
-  // Função para arrastar - CORRIGIDA
   const handleDragStart = (e: React.DragEvent) => {
     e.dataTransfer.setData('text/plain', tarefa.id);
     onDragStart(tarefa.id);
@@ -60,6 +51,16 @@ const TaskCard: React.FC<CardProps> = ({ tarefa, onEdit, onDelete, onDragStart }
     e.currentTarget.classList.remove('opacity-50');
   };
 
+  // Formatar data para exibição
+  const formatarData = (dataString: string): string => {
+    try {
+      const [ano, mes, dia] = dataString.split('-');
+      return `${dia}/${mes}/${ano}`;
+    } catch {
+      return dataString;
+    }
+  };
+
   return (
     <div 
       className="bg-white p-3 shadow-sm rounded-lg mb-3 border border-gray-200 hover:shadow-md transition-shadow cursor-move"
@@ -68,14 +69,7 @@ const TaskCard: React.FC<CardProps> = ({ tarefa, onEdit, onDelete, onDragStart }
       onDragEnd={handleDragEnd}
     >
       <div className="text-xs text-gray-500 font-semibold mb-1">
-        {tarefa.categorias ?
-          tarefa.categorias
-            .split(',')
-            .map(c => c.trim())
-            .filter(c => c.length > 0)
-            .join(', ')
-          : null
-        }
+        {tarefa.categorias?.join(', ')}
       </div>
      
       <div className="flex justify-between items-start mb-2">
@@ -84,8 +78,16 @@ const TaskCard: React.FC<CardProps> = ({ tarefa, onEdit, onDelete, onDragStart }
         </h4>
 
         <div className="flex space-x-2 flex-shrink-0">
-          <Pencil size={14} className="text-gray-400 cursor-pointer hover:text-blue-500" onClick={() => onEdit(tarefa)} />
-          <Trash2 size={14} className="text-gray-400 cursor-pointer hover:text-red-500" onClick={() => onDelete(tarefa.id)} />
+          <Pencil 
+            size={14} 
+            className="text-gray-400 cursor-pointer hover:text-blue-500" 
+            onClick={() => onEdit(tarefa)} 
+          />
+          <Trash2 
+            size={14} 
+            className="text-gray-400 cursor-pointer hover:text-red-500" 
+            onClick={() => onDelete(tarefa.id)} 
+          />
         </div>
       </div>
 
@@ -97,15 +99,17 @@ const TaskCard: React.FC<CardProps> = ({ tarefa, onEdit, onDelete, onDragStart }
 
       <div className="flex justify-between items-center text-xs mt-3">
         <div className="flex items-center space-x-2">
-          <span className={`px-2 py-0.5 rounded ${priorityColor} text-[10px]`}>{tarefa.prioridade}</span>
+          <span className={`px-2 py-0.5 rounded ${priorityColor} text-[10px]`}>
+            {tarefa.prioridade}
+          </span>
           <div className="flex items-center text-gray-500 text-[10px]">
             <Calendar className="w-3 h-3 mr-1" />
-            {tarefa.data}
+            {formatarData(tarefa.data)}
           </div>
         </div>
        
         <div className="flex items-center space-x-1">
-          {tarefa.responsavel && tarefa.responsavel.map((nome, index) => {
+          {tarefa.responsavel?.map((nome, index) => {
             const firstInitial = nome.trim().charAt(0).toUpperCase(); 
             const colors = ['bg-blue-300 text-blue-800', 'bg-green-300 text-green-800', 'bg-yellow-300 text-yellow-800', 'bg-red-300 text-red-800'];
             const color = colors[index % colors.length];
@@ -130,46 +134,29 @@ const TaskCard: React.FC<CardProps> = ({ tarefa, onEdit, onDelete, onDragStart }
   );
 };
 
-
-// Modal lateral com calendário 
-
+// Modal
 interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (task: Tarefa) => void;
-  initialTask: Tarefa | null;
+  onSubmit: (task: TarefaUI) => void;
+  initialTask: TarefaUI | null;
 }
 
 const TaskModal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, initialTask }) => {
-  const [taskState, setTaskState] = useState<Tarefa>({
+  const [taskState, setTaskState] = useState<TarefaUI>({
     id: '',
     titulo: '',
     descricao: '',
-    data: '',
+    data: new Date().toISOString().split('T')[0],
     responsavel: [],
     prioridade: 'Média',
     status: 'A Fazer',
-    categorias: ''
+    categorias: []
   });
   
   const [currentResponsible, setCurrentResponsible] = useState('');
+  const [currentCategoria, setCurrentCategoria] = useState('');
   const [dataError, setDataError] = useState('');
-
-  // Função para converter string dd/mm/aaaa para Date
-  const parseDateString = (dateStr: string): Date | null => {
-    if (!dateStr || dateStr.length !== 10) return null;
-    
-    const [day, month, year] = dateStr.split('/').map(Number);
-    return new Date(year, month - 1, day);
-  };
-
-  // Função para converter Date para string dd/mm/aaaa
-  const formatDateToString = (date: Date): string => {
-    const day = date.getDate().toString().padStart(2, '0');
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const year = date.getFullYear();
-    return `${day}/${month}/${year}`;
-  };
 
   useEffect(() => {
     if (initialTask) {
@@ -182,14 +169,15 @@ const TaskModal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, initialTas
         id: '',
         titulo: '',
         descricao: '',
-        data: formatDateToString(tomorrow),
+        data: tomorrow.toISOString().split('T')[0],
         responsavel: [],
         prioridade: 'Média',
         status: 'A Fazer',
-        categorias: ''
+        categorias: []
       });
     }
     setCurrentResponsible('');
+    setCurrentCategoria('');
     setDataError('');
   }, [initialTask, isOpen]);
 
@@ -211,94 +199,34 @@ const TaskModal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, initialTas
     }));
   };
 
-  // Função para validar data
-  const validateDate = (dateStr: string): boolean => {
-    if (!dateStr || dateStr.length !== 10) return false;
-    
-    const date = parseDateString(dateStr);
-    if (!date) return false;
-    
-    const [day, month, year] = dateStr.split('/').map(Number);
-    return date.getDate() === day && 
-           (date.getMonth() + 1) === month && 
-           date.getFullYear() === year;
+  const handleAddCategoria = () => {
+    const cat = currentCategoria.trim();
+    if (cat && !taskState.categorias.includes(cat)) {
+      setTaskState(prev => ({ 
+        ...prev, 
+        categorias: [...prev.categorias, cat] 
+      }));
+      setCurrentCategoria('');
+    }
   };
 
-  // Função para formatar data enquanto digita
-  const formatDateInput = (value: string): string => {
-    const cleaned = value.replace(/\D/g, '');
-    
-    let formatted = '';
-    
-    if (cleaned.length > 0) {
-      formatted = cleaned.substring(0, 2);
-    }
-    if (cleaned.length > 2) {
-      formatted += '/' + cleaned.substring(2, 4);
-    }
-    if (cleaned.length > 4) {
-      formatted += '/' + cleaned.substring(4, 8);
-    }
-    
-    return formatted;
+  const handleRemoveCategoria = (catToRemove: string) => {
+    setTaskState(prev => ({
+      ...prev,
+      categorias: prev.categorias.filter(cat => cat !== catToRemove),
+    }));
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     
     if (name === 'data') {
-      const formattedValue = formatDateInput(value);
-      setTaskState(prev => ({ ...prev, [name]: formattedValue }));
-      
-      if (formattedValue.length === 10) {
-        if (!validateDate(formattedValue)) {
-        } else {
-          setDataError('');
-        }
-      } else if (formattedValue.length > 0) {
-      } else {
-        setDataError('');
-      }
+      setTaskState(prev => ({ ...prev, [name]: value }));
+      setDataError('');
       return;
     }
 
     setTaskState(prev => ({ ...prev, [name]: value }));
-  };
-
-  // FUNÇÃO CORRIGIDA para abrir date picker
-  const handleCalendarIconClick = () => {
-    // Criar um input date e simular clique
-    const input = document.createElement('input');
-    input.type = 'date';
-    
-    // Configurar valor atual se existir
-    if (taskState.data && validateDate(taskState.data)) {
-      const date = parseDateString(taskState.data);
-      if (date) {
-        input.value = date.toISOString().split('T')[0];
-      }
-    }
-    
-    // Configurar data mínima
-    const today = new Date();
-    input.min = today.toISOString().split('T')[0];
-    
-    // Configurar evento change
-    input.onchange = (e) => {
-      const target = e.target as HTMLInputElement;
-      if (target.value) {
-        const selectedDate = new Date(target.value);
-        const formattedDate = formatDateToString(selectedDate);
-        setTaskState(prev => ({ ...prev, data: formattedDate }));
-        setDataError('');
-      }
-    };
-    
-    // Adicionar ao DOM, focar e remover
-    document.body.appendChild(input);
-    input.focus();
-    input.click();
-    document.body.removeChild(input);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -309,22 +237,13 @@ const TaskModal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, initialTas
       return;
     }
 
-    if (!taskState.data || !validateDate(taskState.data)) {
-      setDataError('Por favor, preencha uma data válida (dd/mm/aaaa).');
+    if (!taskState.data) {
+      setDataError('Por favor, selecione uma data.');
       return;
     }
 
     onSubmit(taskState);
     onClose();
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && e.currentTarget.tagName !== 'TEXTAREA') {
-      e.preventDefault();
-      if (e.currentTarget.getAttribute('name') === 'responsavelInput') {
-        handleAddResponsible();
-      }
-    }
   };
 
   if (!isOpen) return null;
@@ -390,43 +309,27 @@ const TaskModal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, initialTas
               />
               <div className="flex justify-between text-xs text-gray-500">
                 <span>Opcional</span>
-                <span>{taskState.descricao.length}/500 caracteres</span>
+                <span>{(taskState.descricao || '').length}/500 caracteres</span>
               </div>
             </div>
 
             {/* Data e Prioridade */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Data - COM CALENDÁRIO FUNCIONAL */}
+              {/* Data */}
               <div className="space-y-2">
                 <label className="block text-sm font-medium text-gray-700">
                   Data *
                 </label>
-                <div className="relative">
-                  {/* Ícone do calendário - AGORA FUNCIONAL */}
-                  <button
-                    type="button"
-                    onClick={handleCalendarIconClick}
-                    className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 hover:text-blue-500 cursor-pointer z-10"
-                    aria-label="Abrir calendário"
-                  >
-                    <Calendar className="h-4 w-4" />
-                  </button>
-                  
-                  {/* Campo de data */}
-                  <input
-                    name="data"
-                    type="text"
-                    value={taskState.data}
-                    onChange={handleChange}
-                    required
-                    className={`w-full pl-10 pr-3 py-2.5 border rounded-md focus:ring-blue-500 focus:border-blue-500 ${
-                      dataError ? 'border-red-300' : 'border-gray-300'
-                    }`}
-                    placeholder="dd/mm/aaaa"
-                    maxLength={10}
-                    inputMode="numeric"
-                  />
-                </div>
+                <input
+                  name="data"
+                  type="date"
+                  value={taskState.data}
+                  onChange={handleChange}
+                  required
+                  className={`w-full px-3 py-2.5 border rounded-md focus:ring-blue-500 focus:border-blue-500 ${
+                    dataError ? 'border-red-300' : 'border-gray-300'
+                  }`}
+                />
                 
                 {/* Mensagens de validação */}
                 <div className="min-h-[20px]">
@@ -466,10 +369,14 @@ const TaskModal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, initialTas
                 <div className="relative flex-1">
                   <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <input 
-                    name="responsavelInput"
                     value={currentResponsible} 
                     onChange={(e) => setCurrentResponsible(e.target.value)}
-                    onKeyDown={handleKeyDown}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddResponsible();
+                      }
+                    }}
                     className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Digite o nome do responsável"
                   />
@@ -516,21 +423,58 @@ const TaskModal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, initialTas
               <label className="block text-sm font-medium text-gray-700">
                 Categorias
               </label>
-              <div className="relative">
-                <Tag className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <input 
-                  name="categorias" 
-                  value={taskState.categorias} 
-                  onChange={handleChange} 
-                  className="w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Ex: Planejamento, Reunião, Desenvolvimento"
-                  maxLength={200}
-                />
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Tag className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <input 
+                    value={currentCategoria} 
+                    onChange={(e) => setCurrentCategoria(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddCategoria();
+                      }
+                    }}
+                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Ex: Planejamento, Reunião"
+                    maxLength={50}
+                  />
+                </div>
+                <button 
+                  type="button" 
+                  onClick={handleAddCategoria}
+                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors flex items-center gap-1"
+                  aria-label="Adicionar categoria"
+                >
+                  <Plus size={16} />
+                  <span className="hidden sm:inline">Adicionar</span>
+                </button>
               </div>
-              <div className="flex justify-between text-xs text-gray-500">
-                <span>Separe por vírgula</span>
-                <span>{taskState.categorias.length}/200 caracteres</span>
-              </div>
+              
+              {/* Lista de categorias */}
+              {taskState.categorias.length > 0 && (
+                <div className="mt-2">
+                  <div className="flex flex-wrap gap-2">
+                    {taskState.categorias.map((cat, index) => (
+                      <div 
+                        key={index} 
+                        className="flex items-center gap-1 px-3 py-1 bg-green-50 text-green-800 rounded-full text-sm font-medium"
+                      >
+                        <Tag size={12} />
+                        <span>{cat}</span>
+                        <button 
+                          type="button" 
+                          onClick={() => handleRemoveCategoria(cat)} 
+                          className="text-green-600 hover:text-green-800 ml-1"
+                          aria-label={`Remover ${cat}`}
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Status */}
@@ -573,16 +517,135 @@ const TaskModal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, initialTas
   );
 };
 
-
-// Parte com o Kanban 
-
+// Componente principal
 export default function Tarefas() {
-  const [tasks, setTasks] = useState<Tarefa[]>(initialTasks);
+  const { data, atualizarTarefas } = useDashConect();
+  const [tasks, setTasks] = useState<TarefaUI[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingTask, setEditingTask] = useState<Tarefa | null>(null);
+  const [editingTask, setEditingTask] = useState<TarefaUI | null>(null);
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  // CORREÇÃO: Funções para arrastar tarefas
+  // Carregar dados do backend
+  useEffect(() => {
+    const carregarDados = async () => {
+      try {
+        setLoading(true);
+        const tarefasData = await apiService.tarefas.getAll();
+        
+        const tarefasUI: TarefaUI[] = tarefasData.map((t: ApiTarefa) => {
+          // Converter categorias para array
+          let categoriasArray: string[] = [];
+          if (Array.isArray(t.categorias)) {
+            categoriasArray = t.categorias;
+          } else if (typeof t.categorias === 'string' && t.categorias) {
+            categoriasArray = t.categorias.split(',').map((c: string) => c.trim()).filter((c: string) => c);
+          }
+          
+          // Converter responsavel para array
+          let responsavelArray: string[] = [];
+          if (Array.isArray(t.responsavel)) {
+            responsavelArray = t.responsavel;
+          } else if (typeof t.responsavel === 'string' && t.responsavel) {
+            try {
+              // Tentar parsear como JSON
+              const parsed = JSON.parse(t.responsavel);
+              responsavelArray = Array.isArray(parsed) ? parsed : [t.responsavel];
+            } catch {
+              // Se falhar, tratar como string simples
+              responsavelArray = t.responsavel ? [t.responsavel] : [];
+            }
+          }
+          
+          // Converter status para formato UI
+          let statusUI: 'A Fazer' | 'Em andamento' | 'Concluído' = 'A Fazer';
+          if (t.status === 'concluido' || t.status === 'Concluído') {
+            statusUI = 'Concluído';
+          } else if (t.status === 'andamento' || t.status === 'Em andamento') {
+            statusUI = 'Em andamento';
+          }
+          
+          // Converter prioridade para formato UI
+          let prioridadeUI: 'Baixa' | 'Média' | 'Alta' = 'Média';
+          if (t.prioridade === 'alta' || t.prioridade === 'Alta') {
+            prioridadeUI = 'Alta';
+          } else if (t.prioridade === 'baixa' || t.prioridade === 'Baixa') {
+            prioridadeUI = 'Baixa';
+          }
+          
+          return {
+            id: t.id.toString(),
+            titulo: t.titulo || '',
+            descricao: t.descricao || '',
+            data: t.data || new Date().toISOString().split('T')[0],
+            responsavel: responsavelArray,
+            prioridade: prioridadeUI,
+            status: statusUI,
+            categorias: categoriasArray,
+            dataCriacao: new Date(t.data_criacao || Date.now()),
+            progresso: t.progresso || 0
+          };
+        });
+        
+        setTasks(tarefasUI);
+        
+        // Converter para o formato do contexto
+        const tarefasContexto = tarefasUI.map(t => ({
+          id: t.id,
+          titulo: t.titulo,
+          descricao: t.descricao || '',
+          status: (t.status === 'Concluído' ? 'concluido' : 
+                  t.status === 'Em andamento' ? 'andamento' : 'pendente') as "pendente" | "andamento" | "concluido",
+          responsavel: t.responsavel.join(', '),
+          prioridade: (t.prioridade.toLowerCase() as "baixa" | "media" | "alta"),
+          dataCriacao: t.dataCriacao || new Date(),
+          dataPrazo: new Date(t.data),
+          progresso: t.status === 'Concluído' ? 100 : t.status === 'Em andamento' ? 50 : 0,
+          categorias: t.categorias
+        }));
+        
+        atualizarTarefas(tarefasContexto);
+      } catch (error) {
+        console.error('Erro ao carregar tarefas:', error);
+        // Usar dados do contexto como fallback
+        const contextData: TarefaUI[] = data.tarefas.map((t: any) => {
+          let statusUI: 'A Fazer' | 'Em andamento' | 'Concluído' = 'A Fazer';
+          if (t.status === 'concluido') {
+            statusUI = 'Concluído';
+          } else if (t.status === 'andamento') {
+            statusUI = 'Em andamento';
+          }
+          
+          let prioridadeUI: 'Baixa' | 'Média' | 'Alta' = 'Média';
+          if (t.prioridade === 'alta') {
+            prioridadeUI = 'Alta';
+          } else if (t.prioridade === 'baixa') {
+            prioridadeUI = 'Baixa';
+          }
+          
+          return {
+            id: t.id,
+            titulo: t.titulo,
+            descricao: t.descricao || '',
+            data: t.dataPrazo ? t.dataPrazo.toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+            responsavel: t.responsavel ? [t.responsavel] : [],
+            prioridade: prioridadeUI,
+            status: statusUI,
+            categorias: t.categorias || [],
+            dataCriacao: t.dataCriacao || new Date(),
+            progresso: t.progresso || 0
+          };
+        });
+        setTasks(contextData);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    carregarDados();
+  }, [data.tarefas, atualizarTarefas]);
+
+  // Funções para arrastar tarefas
   const handleDragStart = (taskId: string) => {
     setDraggedTaskId(taskId);
   };
@@ -596,17 +659,43 @@ export default function Tarefas() {
     e.currentTarget.classList.remove('bg-gray-200');
   };
 
-  const handleDrop = (e: React.DragEvent, newStatus: Tarefa['status']) => {
+  const handleDrop = async (e: React.DragEvent, newStatus: TarefaUI['status']) => {
     e.preventDefault();
     e.currentTarget.classList.remove('bg-gray-200');
     
     if (draggedTaskId) {
-      setTasks(prevTasks => 
-        prevTasks.map(task => 
-          task.id === draggedTaskId ? { ...task, status: newStatus } : task
-        )
-      );
-      setDraggedTaskId(null);
+      try {
+        // Converter status para formato API
+        let statusAPI = newStatus;
+        if (newStatus === 'Concluído') statusAPI = 'Concluído';
+        else if (newStatus === 'Em andamento') statusAPI = 'Em andamento';
+        else statusAPI = 'A Fazer';
+        
+        // Atualizar no backend
+        const taskToUpdate = tasks.find(t => t.id === draggedTaskId);
+        if (taskToUpdate) {
+          await apiService.tarefas.update(parseInt(draggedTaskId), {
+            titulo: taskToUpdate.titulo,
+            descricao: taskToUpdate.descricao,
+            data: taskToUpdate.data,
+            responsavel: JSON.stringify(taskToUpdate.responsavel),
+            prioridade: taskToUpdate.prioridade,
+            status: statusAPI,
+            categorias: taskToUpdate.categorias.join(', ')
+          });
+          
+          // Atualizar localmente
+          setTasks(prevTasks => 
+            prevTasks.map(task => 
+              task.id === draggedTaskId ? { ...task, status: newStatus } : task
+            )
+          );
+        }
+        setDraggedTaskId(null);
+      } catch (error) {
+        console.error('Erro ao atualizar status:', error);
+        alert('Erro ao atualizar status da tarefa');
+      }
     }
   };
 
@@ -615,23 +704,84 @@ export default function Tarefas() {
     setIsModalOpen(true);
   };
 
-  const handleEditTask = (task: Tarefa) => {
+  const handleEditTask = (task: TarefaUI) => {
     setEditingTask(task);
     setIsModalOpen(true);
   };
 
-  const handleSaveTask = (newTask: Tarefa) => {
-    if (editingTask) {
-      setTasks(tasks.map(t => t.id === editingTask.id ? { ...t, ...newTask } : t));
-    } else {
-      setTasks([...tasks, { ...newTask, id: Date.now().toString() }]);
+  const handleSaveTask = async (taskData: TarefaUI) => {
+    try {
+      // Converter responsavel para string JSON
+      const responsavelStr = JSON.stringify(taskData.responsavel);
+      
+      if (editingTask) {
+        // Atualizar tarefa existente
+        await apiService.tarefas.update(parseInt(taskData.id), {
+          titulo: taskData.titulo,
+          descricao: taskData.descricao,
+          data: taskData.data,
+          responsavel: responsavelStr,
+          prioridade: taskData.prioridade,
+          status: taskData.status,
+          categorias: taskData.categorias.join(', ')
+        });
+        
+        setTasks(prev => prev.map(t => t.id === taskData.id ? taskData : t));
+      } else {
+        // Criar nova tarefa
+        const novaTarefa = await apiService.tarefas.create({
+          titulo: taskData.titulo,
+          descricao: taskData.descricao,
+          data: taskData.data,
+          responsavel: responsavelStr,
+          prioridade: taskData.prioridade,
+          status: taskData.status,
+          categorias: taskData.categorias.join(', ')
+        });
+        
+        const novaTarefaUI: TarefaUI = {
+          id: novaTarefa.id.toString(),
+          titulo: novaTarefa.titulo,
+          descricao: novaTarefa.descricao || '',
+          data: novaTarefa.data || new Date().toISOString().split('T')[0],
+          responsavel: novaTarefa.responsavel ? 
+            (Array.isArray(novaTarefa.responsavel) ? 
+              novaTarefa.responsavel : 
+              (typeof novaTarefa.responsavel === 'string' ? 
+                JSON.parse(novaTarefa.responsavel) : 
+                [])) : [],
+          prioridade: (novaTarefa.prioridade as 'Baixa' | 'Média' | 'Alta') || 'Média',
+          status: (novaTarefa.status as 'A Fazer' | 'Em andamento' | 'Concluído') || 'A Fazer',
+          categorias: novaTarefa.categorias ? 
+            (Array.isArray(novaTarefa.categorias) ? 
+              novaTarefa.categorias : 
+              novaTarefa.categorias.split(',').map((c: string) => c.trim())) : [],
+          dataCriacao: new Date(novaTarefa.data_criacao || Date.now()),
+          progresso: novaTarefa.progresso || 0
+        };
+        
+        setTasks(prev => [novaTarefaUI, ...prev]);
+      }
+      
+      setEditingTask(null);
+      setIsModalOpen(false);
+    } catch (error) {
+      console.error('Erro ao salvar tarefa:', error);
+      alert('Erro ao salvar tarefa. Tente novamente.');
     }
-    setEditingTask(null);
   };
 
-  const handleDeleteTask = (id: string) => {
-    if (window.confirm('Tem certeza que deseja excluir esta tarefa?')) {
-      setTasks(tasks.filter(t => t.id !== id));
+  const handleDeleteTask = async (id: string) => {
+    if (!window.confirm('Tem certeza que deseja excluir esta tarefa?')) {
+      return;
+    }
+
+    try {
+      await apiService.tarefas.delete(parseInt(id));
+      setTasks(prev => prev.filter(t => t.id !== id));
+    } catch (error) {
+      console.error('Erro ao excluir tarefa:', error);
+      alert('Erro ao excluir tarefa. Tente novamente.');
     }
   };
 
@@ -645,6 +795,9 @@ export default function Tarefas() {
             <h1 className="text-3xl md:text-4xl font-bold text-white">
               Gestão de Tarefas
             </h1>
+            <span className="text-xs bg-green-500 px-2 py-1 rounded-full">
+              Tempo Real
+            </span>
           </div>
           <p className="text-blue-100 text-lg">
             Organize e acompanhe o progresso das tarefas
@@ -674,50 +827,56 @@ export default function Tarefas() {
               </button>
             </div>
 
-            <div className="flex space-x-6 overflow-x-auto pb-4">
-              {STATUS_COLUMNS.map(column => (
-                <div 
-                  key={column.name} 
-                  className="flex-shrink-0 w-80"
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  onDrop={(e) => handleDrop(e, column.name as Tarefa['status'])}
-                >
-                  <div className={`flex items-center justify-between p-3 rounded-t-lg text-white ${column.color}`}>
-                    <h3 className="font-semibold text-base">{column.name}</h3>
-                    <span className="bg-white text-gray-800 rounded-full h-6 w-6 flex items-center justify-center text-xs font-bold">
-                      {tasks.filter(t => t.status === column.name).length}
-                    </span>
-                  </div>
+            {loading ? (
+              <div className="text-center py-8">
+                <p className="text-gray-500">Carregando tarefas...</p>
+              </div>
+            ) : (
+              <div className="flex space-x-6 overflow-x-auto pb-4">
+                {STATUS_COLUMNS.map(column => (
+                  <div 
+                    key={column.name} 
+                    className="flex-shrink-0 w-80"
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={(e) => handleDrop(e, column.name as TarefaUI['status'])}
+                  >
+                    <div className={`flex items-center justify-between p-3 rounded-t-lg text-white ${column.color}`}>
+                      <h3 className="font-semibold text-base">{column.name}</h3>
+                      <span className="bg-white text-gray-800 rounded-full h-6 w-6 flex items-center justify-center text-xs font-bold">
+                        {tasks.filter(t => t.status === column.name).length}
+                      </span>
+                    </div>
 
-                  <div className="bg-gray-100 p-3 rounded-b-lg min-h-64 max-h-[70vh] overflow-y-auto transition-colors duration-200">
-                    {tasks
-                      .filter(t => t.status === column.name)
-                      .map(tarefa => (
-                        <TaskCard
-                          key={tarefa.id}
-                          tarefa={tarefa}
-                          onEdit={handleEditTask}
-                          onDelete={handleDeleteTask}
-                          onDragStart={handleDragStart}
-                        />
-                      ))}
-                    
-                    {tasks.filter(t => t.status === column.name).length === 0 && (
-                      <div className="text-center py-8 text-gray-400">
-                        <p className="text-sm">Nenhuma tarefa aqui</p>
-                        <p className="text-xs mt-1">Arraste tarefas para cá</p>
-                      </div>
-                    )}
+                    <div className="bg-gray-100 p-3 rounded-b-lg min-h-64 max-h-[70vh] overflow-y-auto transition-colors duration-200">
+                      {tasks
+                        .filter(t => t.status === column.name)
+                        .map(tarefa => (
+                          <TaskCard
+                            key={tarefa.id}
+                            tarefa={tarefa}
+                            onEdit={handleEditTask}
+                            onDelete={handleDeleteTask}
+                            onDragStart={handleDragStart}
+                          />
+                        ))}
+                      
+                      {tasks.filter(t => t.status === column.name).length === 0 && (
+                        <div className="text-center py-8 text-gray-400">
+                          <p className="text-sm">Nenhuma tarefa aqui</p>
+                          <p className="text-xs mt-1">Arraste tarefas para cá</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Chamada do modal lateral */}
+      {/* Modal */}
       <TaskModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}

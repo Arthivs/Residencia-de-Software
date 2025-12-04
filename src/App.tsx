@@ -1,4 +1,5 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+// frontend/src/App.tsx
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { DashConectProvider } from "./conect/dashconect";
 import Login from "./paginas/Login";
 import DashboardLayout from "./componentes/Layout/DashboardLayout";
@@ -9,6 +10,7 @@ import Configuracoes from "./paginas/config/configuracoes";
 import Assistente from "./paginas/assistente";
 import Tarefas from "./paginas/tarefas";
 import AlterarSenha from "./paginas/AlterarSenha";
+import ProtectedRoute from "./componentes/ProtectedRoute";
 
 function App() {
   return (
@@ -17,8 +19,14 @@ function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/alterar-senha" element={<AlterarSenha />} />
-          <Route path="/" element={<DashboardLayout />}>
-            <Route index element={<Dashboard />} />
+          
+          {/* Rotas protegidas */}
+          <Route path="/" element={
+            <ProtectedRoute>
+              <DashboardLayout />
+            </ProtectedRoute>
+          }>
+            <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="tarefas" element={<Tarefas />} />
             <Route path="acoes" element={<Acoes />} />
@@ -26,6 +34,9 @@ function App() {
             <Route path="configuracoes" element={<Configuracoes />} />
             <Route path="assistente" element={<Assistente />} />
           </Route>
+          
+          {/* Rota fallback */}
+          <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </Router>
     </DashConectProvider>
