@@ -313,12 +313,9 @@ function Financeiro() {
             <h1 className="text-3xl md:text-4xl font-bold text-white">
               Financeiro
             </h1>
-            <span className="text-xs bg-green-500 px-2 py-1 rounded-full">
-              Tempo Real
-            </span>
           </div>
           <p className="text-blue-100 text-lg">
-            Gestão financeira com atualização em tempo real
+            Gerencie informações financeiras
           </p>
         </div>
       </div>

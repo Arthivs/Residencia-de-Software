@@ -941,24 +941,8 @@ export default function Dashboard() {
             <p className="text-gray-500 text-lg font-normal max-w-2xl leading-relaxed">
               Sistema de Gerenciamento de Ações do Vereador 
             </p>
-          </div>
-          
-          <div className="flex items-center gap-3">
-            <div className={`flex items-center gap-2 px-3 py-2 rounded-lg ${webSocketStatus.connected ? 'bg-green-50 text-green-700' : 'bg-yellow-50 text-yellow-700'}`}>
-              <div className={`w-2 h-2 rounded-full ${webSocketStatus.connected ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
-              <span className="text-sm font-medium">
-                {webSocketStatus.connected ? 'Conectado' : 'Desconectado'}
-              </span>
-            </div>
+    
             
-            <button 
-              onClick={recarregarDados}
-              disabled={loading}
-              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 transition-colors flex items-center gap-2"
-            >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-              {loading ? 'Atualizando...' : 'Atualizar'}
-            </button>
           </div>
         </div>
       </div>
@@ -1075,10 +1059,6 @@ export default function Dashboard() {
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                <Users className="w-5 h-5 text-gray-400" />
-                <span className="text-xs font-medium bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
-                  {responsaveisChartData.length} responsáveis
-                </span>
               </div>
             </div>
             <div className="flex-1">
@@ -1278,7 +1258,6 @@ export default function Dashboard() {
           Sistema atualizado em {new Date().toLocaleDateString('pt-BR')} às {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
         </p>
         <p className="mt-1">
-          WebSocket: {webSocketStatus.connected ? '🟢 Conectado' : '🔴 Desconectado'} • 
           Total de Ações: {totalAcoes || 0} • 
           Total Financeiro: {formatarMoeda(saldo)}
         </p>

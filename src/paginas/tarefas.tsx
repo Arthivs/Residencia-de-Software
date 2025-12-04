@@ -930,9 +930,6 @@ export default function Tarefas() {
             <h1 className="text-3xl md:text-4xl font-bold text-white">
               Gestão de Tarefas
             </h1>
-            <span className="text-xs bg-green-500 px-2 py-1 rounded-full">
-              Tempo Real
-            </span>
           </div>
           <p className="text-blue-100 text-lg">
             Organize e acompanhe o progresso das tarefas
@@ -957,8 +954,6 @@ export default function Tarefas() {
           <div className="p-6">
             <div className="mb-6 flex justify-between items-center">
               <div>
-                <h2 className="text-xl font-semibold text-gray-800">Kanban de Tarefas</h2>
-                <p className="text-sm text-gray-500">Total: {tasks.length} tarefas</p>
               </div>
               <button
                 onClick={handleNewTask}

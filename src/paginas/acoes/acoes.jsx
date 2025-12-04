@@ -38,7 +38,7 @@ function useActionsIntegrated() {
 
       // Se já temos dados no contexto, usar eles primeiro
       if (data.acoes && data.acoes.length > 0 && !hasLoadedActions.current) {
-        console.log("📂 Usando dados do contexto para ações");
+        console.log(" Usando dados do contexto para ações");
         const contextActions = data.acoes.map((a) => ({
           id: a.id.toString(),
           titulo: a.titulo,
