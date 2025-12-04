@@ -1,4 +1,3 @@
-// frontend/src/paginas/acoes/modal.jsx - VERSÃO INTEGRADA COM API
 import React, { useEffect, useState } from "react";
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
 import L from "leaflet";

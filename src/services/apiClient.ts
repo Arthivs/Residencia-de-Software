@@ -1,8 +1,8 @@
 // frontend/src/services/apiClient.ts
 import axios from 'axios';
 
-// URL base da API - pega do .env ou usa default
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+// ⚠️ CORREÇÃO AQUI: Mude 3000 para 3001
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 const apiClient = axios.create({
   baseURL: API_URL,

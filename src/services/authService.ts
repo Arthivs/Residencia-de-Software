@@ -24,7 +24,8 @@ export interface User {
 
 class AuthService {
   async login(credentials: LoginRequest): Promise<LoginResponse> {
-    const response = await apiClient.post<LoginResponse>('/login', credentials);
+    // CORREÇÃO: Adicionar /api antes do login
+    const response = await apiClient.post<LoginResponse>('/api/login', credentials);
     
     if (response.data.token) {
       this.setAuthData(response.data);

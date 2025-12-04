@@ -1,11 +1,10 @@
-import React, { Suspense, lazy, useEffect, useState } from "react";
-import { ToastContainer } from "react-toastify";
+import React, { Suspense, lazy, useEffect, useState, useRef } from "react";
+import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { useDashConect } from "@/conect/dashconect"; // ← USAR ALIAS @
-import { apiService } from "@/services/api"; // ← USAR ALIAS @
+import { useDashConect } from "@/conect/dashconect";
+import { apiService } from "@/services/api";
 import Header from "./Header";
 import ExportButton from "../../componentes/ExportButton";
-
 
 // componentes da pasta /acoes
 const MapView = lazy(() => import("./mapa"));
@@ -13,11 +12,11 @@ const ActionsTable = lazy(() => import("./tabelas"));
 const AnalyticsDashboard = lazy(() => import("./analisedash"));
 const CreateActionModal = lazy(() => import("./modal"));
 
-// Hook useActions integrado
+// Hook useActions integrado 
 function useActionsIntegrated() {
-  const { data, atualizarAcoes } = useDashConect();
+  const { data, atualizarAcoes, removerAcao, sincronizarDashboard } = useDashConect();
   const [actions, setActions] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [selectedType, setSelectedType] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [mapView, setMapView] = useState("pontos");
@@ -25,11 +24,53 @@ function useActionsIntegrated() {
   const [showFilters, setShowFilters] = useState(true);
   const [bairrosList, setBairrosList] = useState([]);
 
-  // Carregar dados
+  // Refs para controle de loops
+  const hasLoadedActions = useRef(false);
+  const isFetching = useRef(false);
+
+  // Carregar dados - CORRIGIDO para evitar loops
   useEffect(() => {
     const fetchActions = async () => {
+      // Evitar múltiplas chamadas
+      if (isFetching.current || hasLoadedActions.current) {
+        return;
+      }
+
+      // Se já temos dados no contexto, usar eles primeiro
+      if (data.acoes && data.acoes.length > 0 && !hasLoadedActions.current) {
+        console.log("📂 Usando dados do contexto para ações");
+        const contextActions = data.acoes.map((a) => ({
+          id: a.id.toString(),
+          titulo: a.titulo,
+          tipo: a.tipo,
+          descricao: a.descricao,
+          data: a.data,
+          bairro: a.bairro,
+          cidade: a.cidade,
+          estado: a.estado,
+          lat: a.lat,
+          lng: a.lng,
+          endereco: a.endereco,
+          dataCriacao: a.dataCriacao,
+          fotos: a.fotos || [],
+          status: a.status
+        }));
+        
+        setActions(contextActions);
+        
+        const bairros = [...new Set(contextActions.map((a) => a.bairro).filter(Boolean))].sort();
+        setBairrosList(bairros);
+        
+        hasLoadedActions.current = true;
+        return;
+      }
+
+      // Carregar do servidor apenas se necessário
       try {
+        isFetching.current = true;
         setLoading(true);
+        
+        console.log("📡 Buscando ações do servidor...");
         const acoesData = await apiService.acoes.getAll();
         
         // Converter para formato UI
@@ -52,33 +93,37 @@ function useActionsIntegrated() {
         
         setActions(actionsUI);
         
-        // Atualizar contexto
-        const acoesContexto = actionsUI.map(a => ({
-          id: a.id,
-          titulo: a.titulo,
-          tipo: a.tipo,
-          descricao: a.descricao,
-          data: a.data,
-          bairro: a.bairro,
-          cidade: a.cidade,
-          estado: a.estado,
-          lat: a.lat,
-          lng: a.lng,
-          endereco: a.endereco,
-          dataCriacao: a.dataCriacao,
-          fotos: a.fotos,
-          status: a.status
-        }));
-        
-        atualizarAcoes(acoesContexto);
+        // Atualizar contexto apenas se for diferente
+        if (actionsUI.length > 0) {
+          const acoesContexto = actionsUI.map(a => ({
+            id: a.id,
+            titulo: a.titulo,
+            tipo: a.tipo,
+            descricao: a.descricao,
+            data: a.data,
+            bairro: a.bairro,
+            cidade: a.cidade,
+            estado: a.estado,
+            lat: a.lat,
+            lng: a.lng,
+            endereco: a.endereco,
+            dataCriacao: a.dataCriacao,
+            fotos: a.fotos,
+            status: a.status
+          }));
+          
+          atualizarAcoes(acoesContexto);
+        }
         
         // Atualizar lista de bairros
         const bairros = [...new Set(acoesData.map((a) => a.bairro).filter(Boolean))].sort();
         setBairrosList(bairros);
         
+        hasLoadedActions.current = true;
+        
       } catch (error) {
-        console.error("Erro ao carregar ações:", error);
-        // Usar dados do contexto como fallback
+        console.error("❌ Erro ao carregar ações:", error);
+        // Se falhar, usar dados do contexto
         const contextData = data.acoes.map((a) => ({
           id: a.id,
           titulo: a.titulo,
@@ -101,13 +146,20 @@ function useActionsIntegrated() {
         setBairrosList(bairros);
       } finally {
         setLoading(false);
+        isFetching.current = false;
       }
     };
 
+    // Executar apenas uma vez
     fetchActions();
-  }, [data.acoes, atualizarAcoes]);
 
-  // Criar ação
+    // Cleanup
+    return () => {
+      hasLoadedActions.current = false;
+    };
+  }, []); // ← Array vazio para executar apenas uma vez
+
+  // Criar ação COM SINCRONIZAÇÃO
   const createAction = async (payload) => {
     try {
       const acaoCriada = await apiService.acoes.create({
@@ -149,6 +201,9 @@ function useActionsIntegrated() {
         setBairrosList(prev => [...prev, novaAcao.bairro].sort());
       }
 
+      // SINCRONIZAR COM DASHBOARD
+      await sincronizarDashboard('acoes');
+
       return novaAcao;
     } catch (error) {
       console.error("Erro ao criar ação:", error);
@@ -156,7 +211,7 @@ function useActionsIntegrated() {
     }
   };
 
-  // Atualizar ação
+  // Atualizar ação COM SINCRONIZAÇÃO
   const updateAction = async (id, updatedData) => {
     try {
       const acaoAtualizada = await apiService.acoes.update(parseInt(id), updatedData);
@@ -184,6 +239,9 @@ function useActionsIntegrated() {
         )
       );
 
+      // SINCRONIZAR COM DASHBOARD
+      await sincronizarDashboard('acoes');
+
       return acaoUI;
     } catch (error) {
       console.error("Erro ao atualizar ação:", error);
@@ -191,15 +249,25 @@ function useActionsIntegrated() {
     }
   };
 
-  // Excluir ação
+  // Excluir ação COM SINCRONIZAÇÃO
   const deleteAction = async (id) => {
     if (!confirm("Tem certeza que deseja excluir esta ação?")) return;
 
     try {
+      // 1. Excluir do servidor
       await apiService.acoes.delete(parseInt(id));
+      
+      // 2. Atualizar lista local
       setActions(prev => prev.filter((a) => a.id !== id));
+      
+      // 3. SINCRONIZAR COM DASHBOARD
+      removerAcao(id); // Atualização imediata
+      await sincronizarDashboard('acoes'); // Recarregar dados completos
+      
+      toast.success("Ação excluída com sucesso!");
     } catch (error) {
       console.error("Erro ao excluir ação:", error);
+      toast.error("Erro ao excluir ação");
       throw error;
     }
   };
@@ -286,7 +354,7 @@ export default function ActionsPage() {
     }));
   };
 
-  // Função para atualizar ação
+  // Função para atualizar ação COM SINCRONIZAÇÃO
   const handleUpdateAction = async (actionData) => {
     try {
       if (actionData.id) {
@@ -296,7 +364,17 @@ export default function ActionsPage() {
       }
     } catch (error) {
       console.error("Erro ao salvar ação:", error);
-      alert("Erro ao salvar ação. Tente novamente.");
+      toast.error("Erro ao salvar ação. Tente novamente.");
+    }
+  };
+
+  // Função para excluir ação
+  const handleDeleteAction = async (id) => {
+    try {
+      await deleteAction(id);
+    } catch (error) {
+      console.error("Erro ao excluir ação:", error);
+      // O toast de erro já é exibido pela função deleteAction
     }
   };
 
@@ -383,7 +461,7 @@ export default function ActionsPage() {
               window.dispatchEvent(new CustomEvent("openCreateModal"))
             }
             onEdit={handleEditAction} 
-            onDelete={deleteAction}
+            onDelete={handleDeleteAction}
             isLoading={loading}
           />
         </Suspense>

@@ -1,4 +1,3 @@
-// frontend/src/componentes/sidebar.tsx
 import { Link, useLocation } from "react-router-dom";
 import {
   FaHome,
@@ -20,8 +19,8 @@ import { useDashConect } from "../conect/dashconect";
 interface SidebarProps {
   collapsed: boolean;
   onToggle: () => void;
-  userName?: string;    // ADICIONADO
-  userEmail?: string;   // ADICIONADO
+  userName?: string;    
+  userEmail?: string;  
 }
 
 export default function Sidebar({ 
@@ -31,7 +30,7 @@ export default function Sidebar({
   userEmail 
 }: SidebarProps) {
   const location = useLocation();
-  const { logout } = useDashConect(); // REMOVER user daqui, já vem nas props
+  const { logout } = useDashConect(); 
 
   const menuItems = [
     { path: "/dashboard", icon: FaHome, label: "Dashboard" },

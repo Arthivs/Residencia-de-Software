@@ -1,4 +1,3 @@
-// frontend/src/componentes/Layout/DashboardLayout.tsx
 import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import Sidebar from "../sidebar";

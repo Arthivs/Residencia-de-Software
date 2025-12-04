@@ -1,5 +1,5 @@
-// frontend/src/paginas/financeiro.tsx - VERSÃO COMPLETA CORRIGIDA
-import { useState, useEffect } from 'react';
+// frontend/src/paginas/financeiro.tsx - VERSÃO CORRIGIDA
+import { useState, useEffect, useRef } from 'react';
 import { 
   Download, 
   Plus, 
@@ -27,7 +27,7 @@ interface RegistroFinanceiroUI {
   tipo: string;
   formaPagamento: string;
   comprovante?: string;
-  dataCriacao: Date;
+  dataCriacao: string; // CORREÇÃO: string em vez de Date
   tags: string[];
 }
 
@@ -49,31 +49,63 @@ function Financeiro() {
   const [ordenacao, setOrdenacao] = useState<'data' | 'valor'>('data');
   const [loading, setLoading] = useState(false);
 
-  // Carregar dados do contexto/backend
+  // Refs para controle de loops
+  const hasLoadedFinanceiro = useRef(false);
+  const isFetching = useRef(false);
+
+  // Carregar dados do contexto/backend - CORRIGIDO
   useEffect(() => {
     const carregarDados = async () => {
+      // Evitar múltiplas chamadas
+      if (isFetching.current || hasLoadedFinanceiro.current) {
+        return;
+      }
+
+      // Se já temos dados no contexto, usar eles primeiro
+      if (data.financeiro && data.financeiro.length > 0 && !hasLoadedFinanceiro.current) {
+        console.log("📂 Usando dados do contexto para financeiro");
+        const contextData = data.financeiro.map((reg: any) => ({
+          id: reg.id,
+          data: reg.data, // CORREÇÃO: usar diretamente a string
+          descricao: reg.descricao,
+          categoria: reg.categoria,
+          valor: reg.valor,
+          tipo: reg.tipo,
+          formaPagamento: reg.formaPagamento,
+          comprovante: reg.comprovante,
+          dataCriacao: reg.dataCriacao, // CORREÇÃO: string, não converter para Date
+          tags: reg.tags || []
+        }));
+        setRegistrosFinanceiros(contextData);
+        hasLoadedFinanceiro.current = true;
+        return;
+      }
+
+      // Carregar do servidor apenas se necessário
       try {
+        isFetching.current = true;
         setLoading(true);
-        // Buscar do backend
+        
+        console.log("📡 Buscando financeiro do servidor...");
         const financeiroData = await apiService.financeiro.getAll();
         
         // Converter para UI
         const registrosUI = financeiroData.map((reg: ApiRegistroFinanceiro) => ({
           id: reg.id.toString(),
-          data: new Date(reg.data).toLocaleDateString('pt-BR'),
+          data: reg.data || new Date().toISOString().split('T')[0], // Usar string direto
           descricao: reg.descricao,
           categoria: reg.categoria,
           valor: reg.valor,
           tipo: reg.tipo,
           formaPagamento: reg.forma_pagamento,
           comprovante: reg.comprovante,
-          dataCriacao: new Date(reg.data_criacao || Date.now()),
+          dataCriacao: reg.data_criacao || new Date().toISOString(), // CORREÇÃO: string
           tags: Array.isArray(reg.tags) ? reg.tags : []
         }));
         
         setRegistrosFinanceiros(registrosUI);
         
-        // Converter para o formato do contexto
+        // Converter para o formato do contexto - CORREÇÃO: dataCriacao como string
         const registrosContexto = registrosUI.map(reg => ({
           id: reg.id,
           data: reg.data,
@@ -83,17 +115,19 @@ function Financeiro() {
           tipo: reg.tipo as "despesa" | "receita",
           formaPagamento: reg.formaPagamento,
           comprovante: reg.comprovante,
-          dataCriacao: reg.dataCriacao,
+          dataCriacao: reg.dataCriacao, // CORREÇÃO: string
           tags: reg.tags
         }));
         
         atualizarFinanceiro(registrosContexto);
+        hasLoadedFinanceiro.current = true;
+        
       } catch (error) {
-        console.error('Erro ao carregar financeiro:', error);
+        console.error('❌ Erro ao carregar financeiro:', error);
         // Usar dados do contexto como fallback
         const contextData = data.financeiro.map((reg: any) => ({
           id: reg.id,
-          data: new Date(reg.data).toLocaleDateString('pt-BR'),
+          data: reg.data,
           descricao: reg.descricao,
           categoria: reg.categoria,
           valor: reg.valor,
@@ -104,13 +138,21 @@ function Financeiro() {
           tags: reg.tags || []
         }));
         setRegistrosFinanceiros(contextData);
+        hasLoadedFinanceiro.current = true;
       } finally {
         setLoading(false);
+        isFetching.current = false;
       }
     };
 
+    // Executar apenas uma vez
     carregarDados();
-  }, [data.financeiro, atualizarFinanceiro]);
+
+    // Cleanup
+    return () => {
+      hasLoadedFinanceiro.current = false;
+    };
+  }, []); // ← Array vazio para executar apenas uma vez
 
   // Função para formatar valor
   const formatarValor = (valor: number): string => {
@@ -143,14 +185,14 @@ function Financeiro() {
       // Adicionar à lista local
       const registroUI: RegistroFinanceiroUI = {
         id: registroCriado.id.toString(),
-        data: new Date(registroCriado.data).toLocaleDateString('pt-BR'),
+        data: registroCriado.data,
         descricao: registroCriado.descricao,
         categoria: registroCriado.categoria,
         valor: registroCriado.valor,
         tipo: registroCriado.tipo,
         formaPagamento: registroCriado.forma_pagamento,
         comprovante: registroCriado.comprovante,
-        dataCriacao: new Date(registroCriado.data_criacao || Date.now()),
+        dataCriacao: registroCriado.data_criacao, // CORREÇÃO: string
         tags: Array.isArray(registroCriado.tags) ? registroCriado.tags : []
       };
 
@@ -166,7 +208,7 @@ function Financeiro() {
         tipo: registroUI.tipo as "despesa" | "receita",
         formaPagamento: registroUI.formaPagamento,
         comprovante: registroUI.comprovante,
-        dataCriacao: registroUI.dataCriacao,
+        dataCriacao: registroUI.dataCriacao, // CORREÇÃO: string
         tags: registroUI.tags
       };
       
@@ -221,8 +263,7 @@ function Financeiro() {
     })
     .sort((a, b) => {
       if (ordenacao === 'data') {
-        return new Date(b.data.split('/').reverse().join('-')).getTime() - 
-               new Date(a.data.split('/').reverse().join('-')).getTime();
+        return new Date(b.data).getTime() - new Date(a.data).getTime();
       } else {
         return b.valor - a.valor;
       }
@@ -520,7 +561,7 @@ function Financeiro() {
                   registrosFiltrados.map((registro) => (
                     <tr key={registro.id} className="hover:bg-gray-50">
                       <td className="p-4 text-sm text-gray-700">
-                        {registro.data}
+                        {new Date(registro.data).toLocaleDateString('pt-BR')}
                       </td>
                       <td className="p-4 text-sm text-gray-700">
                         {registro.descricao}

@@ -1,45 +1,130 @@
-// frontend/src/paginas/tarefas.tsx - VERSÃO FINAL CORRIGIDA
-import React, { useState, useEffect } from 'react';
-import { Plus, X, Pencil, Trash2, Calendar, User, Tag, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Plus, X, Pencil, Trash2, Calendar, User, Tag, AlertCircle, CheckCircle } from 'lucide-react';
 import { FaTasks } from 'react-icons/fa';
 import { useDashConect } from '../conect/dashconect';
 import { apiService } from '../services/api';
-import type { Tarefa as ApiTarefa } from '../services/api';
 
-// Interface compatível com API
-interface TarefaUI {
+// Interface para resposta da API (backend PostgreSQL)
+interface TarefaAPI {
+  id: number;
+  titulo: string;
+  descricao?: string;
+  data_prazo: string; // Formato: yyyy-mm-dd
+  prioridade: 'baixa' | 'media' | 'alta';
+  status: 'pendente' | 'andamento' | 'concluido';
+  data_criacao: string;
+  data_conclusao?: string;
+  progresso?: number;
+  responsaveis: string[];
+  categorias: string[];
+  usuario_id: number;
+}
+
+// Interface para UI (formato usado no frontend)
+interface TarefaUIView {
   id: string;
   titulo: string;
   descricao?: string;
-  data: string; // Formato: yyyy-mm-dd
+  data: string; // Formato: yyyy-mm-dd (renomeado de data_prazo)
   responsavel: string[];
   prioridade: 'Baixa' | 'Média' | 'Alta';
   status: 'A Fazer' | 'Em andamento' | 'Concluído';
   categorias: string[];
-  dataCriacao?: Date;
+  dataCriacao: string;
   progresso?: number;
 }
 
+// Interface para os dados que a API espera
+interface TarefaAPIData {
+  titulo: string;
+  descricao?: string;
+  data: string;
+  responsavel: string; // string, não array
+  prioridade: 'baixa' | 'media' | 'alta';
+  status: 'pendente' | 'andamento' | 'concluido';
+  categorias: string; // string separada por vírgulas
+}
+
 const STATUS_COLUMNS = [
-  { name: 'A Fazer', color: 'bg-[#0057B7]' },
-  { name: 'Em andamento', color: 'bg-[#D49125]' },
-  { name: 'Concluído', color: 'bg-[#12A107]' },
+  { name: 'A Fazer', color: 'bg-blue-600', apiStatus: 'pendente' },
+  { name: 'Em andamento', color: 'bg-amber-500', apiStatus: 'andamento' },
+  { name: 'Concluído', color: 'bg-emerald-500', apiStatus: 'concluido' },
 ] as const;
 
-const PRIORIDADES = ['Baixa', 'Média', 'Alta'] as const;
+const PRIORIDADES_UI = ['Baixa', 'Média', 'Alta'] as const;
+const PRIORIDADES_API = ['baixa', 'media', 'alta'] as const;
 
-// Componente Card com arraste
+// Funções de conversão
+const converterParaUI = (tarefaApi: any): TarefaUIView => {
+  // Parsear responsavel e categorias de string para array
+  const responsavelArray = tarefaApi.responsavel ? 
+    (typeof tarefaApi.responsavel === 'string' ? 
+      tarefaApi.responsavel.split(',').map((r: string) => r.trim()).filter((r: string) => r) : 
+      Array.isArray(tarefaApi.responsavel) ? tarefaApi.responsavel : []) : [];
+
+  const categoriasArray = tarefaApi.categorias ? 
+    (typeof tarefaApi.categorias === 'string' ? 
+      tarefaApi.categorias.split(',').map((c: string) => c.trim()).filter((c: string) => c) : 
+      Array.isArray(tarefaApi.categorias) ? tarefaApi.categorias : []) : [];
+
+  // Converter prioridade
+  let prioridadeUI: 'Baixa' | 'Média' | 'Alta' = 'Média';
+  if (tarefaApi.prioridade === 'alta') prioridadeUI = 'Alta';
+  else if (tarefaApi.prioridade === 'baixa') prioridadeUI = 'Baixa';
+
+  // Converter status
+  let statusUI: 'A Fazer' | 'Em andamento' | 'Concluído' = 'A Fazer';
+  if (tarefaApi.status === 'concluido') statusUI = 'Concluído';
+  else if (tarefaApi.status === 'andamento') statusUI = 'Em andamento';
+
+  return {
+    id: tarefaApi.id.toString(),
+    titulo: tarefaApi.titulo || '',
+    descricao: tarefaApi.descricao,
+    data: tarefaApi.data_prazo || tarefaApi.data || new Date().toISOString().split('T')[0],
+    responsavel: responsavelArray,
+    prioridade: prioridadeUI,
+    status: statusUI,
+    categorias: categoriasArray,
+    dataCriacao: tarefaApi.data_criacao || '',
+    progresso: tarefaApi.progresso || 0
+  };
+};
+
+const converterParaAPI = (tarefaUI: TarefaUIView): TarefaAPIData => {
+  // Converter prioridade
+  let prioridadeAPI: 'baixa' | 'media' | 'alta' = 'media';
+  if (tarefaUI.prioridade === 'Alta') prioridadeAPI = 'alta';
+  else if (tarefaUI.prioridade === 'Baixa') prioridadeAPI = 'baixa';
+
+  // Converter status
+  let statusAPI: 'pendente' | 'andamento' | 'concluido' = 'pendente';
+  if (tarefaUI.status === 'Concluído') statusAPI = 'concluido';
+  else if (tarefaUI.status === 'Em andamento') statusAPI = 'andamento';
+
+  return {
+    titulo: tarefaUI.titulo.trim(),
+    descricao: tarefaUI.descricao?.trim() || '',
+    data: tarefaUI.data,
+    responsavel: tarefaUI.responsavel.join(', '), // Converter array para string
+    prioridade: prioridadeAPI,
+    status: statusAPI,
+    categorias: tarefaUI.categorias.join(', ') // Converter array para string
+  };
+};
+
+// Componente Card
 interface CardProps {
-  tarefa: TarefaUI;
-  onEdit: (task: TarefaUI) => void;
+  tarefa: TarefaUIView;
+  onEdit: (task: TarefaUIView) => void;
   onDelete: (id: string) => void;
   onDragStart: (taskId: string) => void;
 }
 
 const TaskCard: React.FC<CardProps> = ({ tarefa, onEdit, onDelete, onDragStart }) => {
-  const priorityColor = tarefa.prioridade === 'Alta' ? 'bg-red-200 text-red-800' :
-                        tarefa.prioridade === 'Média' ? 'bg-yellow-200 text-yellow-800' :
-                        'bg-gray-200 text-gray-800';
+  const priorityColor = tarefa.prioridade === 'Alta' ? 'bg-red-100 text-red-800 border-red-200' :
+                        tarefa.prioridade === 'Média' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' :
+                        'bg-gray-100 text-gray-800 border-gray-200';
 
   const handleDragStart = (e: React.DragEvent) => {
     e.dataTransfer.setData('text/plain', tarefa.id);
@@ -63,31 +148,40 @@ const TaskCard: React.FC<CardProps> = ({ tarefa, onEdit, onDelete, onDragStart }
 
   return (
     <div 
-      className="bg-white p-3 shadow-sm rounded-lg mb-3 border border-gray-200 hover:shadow-md transition-shadow cursor-move"
+      className="bg-white p-4 shadow-sm rounded-lg mb-3 border border-gray-200 hover:shadow-md transition-shadow cursor-move hover:border-blue-300"
       draggable="true"
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="text-xs text-gray-500 font-semibold mb-1">
-        {tarefa.categorias?.join(', ')}
-      </div>
-     
       <div className="flex justify-between items-start mb-2">
-        <h4 className="text-sm font-semibold truncate text-gray-800">
-          {tarefa.titulo}
-        </h4>
+        <div className="flex-1">
+          {tarefa.categorias.length > 0 && (
+            <div className="text-xs text-gray-500 font-medium mb-1 flex items-center gap-1">
+              <Tag className="w-3 h-3" />
+              {tarefa.categorias.join(', ')}
+            </div>
+          )}
+         
+          <h4 className="text-sm font-semibold text-gray-800 mb-2">
+            {tarefa.titulo}
+          </h4>
+        </div>
 
         <div className="flex space-x-2 flex-shrink-0">
-          <Pencil 
-            size={14} 
-            className="text-gray-400 cursor-pointer hover:text-blue-500" 
+          <button 
             onClick={() => onEdit(tarefa)} 
-          />
-          <Trash2 
-            size={14} 
-            className="text-gray-400 cursor-pointer hover:text-red-500" 
+            className="p-1 text-gray-400 hover:text-blue-500 transition-colors"
+            title="Editar"
+          >
+            <Pencil size={14} />
+          </button>
+          <button 
             onClick={() => onDelete(tarefa.id)} 
-          />
+            className="p-1 text-gray-400 hover:text-red-500 transition-colors"
+            title="Excluir"
+          >
+            <Trash2 size={14} />
+          </button>
         </div>
       </div>
 
@@ -97,9 +191,9 @@ const TaskCard: React.FC<CardProps> = ({ tarefa, onEdit, onDelete, onDragStart }
         </p>
       )}
 
-      <div className="flex justify-between items-center text-xs mt-3">
+      <div className="flex justify-between items-center">
         <div className="flex items-center space-x-2">
-          <span className={`px-2 py-0.5 rounded ${priorityColor} text-[10px]`}>
+          <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border ${priorityColor}`}>
             {tarefa.prioridade}
           </span>
           <div className="flex items-center text-gray-500 text-[10px]">
@@ -109,9 +203,19 @@ const TaskCard: React.FC<CardProps> = ({ tarefa, onEdit, onDelete, onDragStart }
         </div>
        
         <div className="flex items-center space-x-1">
-          {tarefa.responsavel?.map((nome, index) => {
-            const firstInitial = nome.trim().charAt(0).toUpperCase(); 
-            const colors = ['bg-blue-300 text-blue-800', 'bg-green-300 text-green-800', 'bg-yellow-300 text-yellow-800', 'bg-red-300 text-red-800'];
+          {tarefa.responsavel?.map((responsavelItem, index) => {
+            let nome = "";
+            
+            if (typeof responsavelItem === 'string') {
+              nome = responsavelItem.trim();
+            } else if (responsavelItem != null) {
+              nome = String(responsavelItem).trim();
+            }
+            
+            if (!nome) return null;
+            
+            const firstInitial = nome.charAt(0).toUpperCase(); 
+            const colors = ['bg-blue-100 text-blue-800', 'bg-green-100 text-green-800', 'bg-amber-100 text-amber-800', 'bg-red-100 text-red-800'];
             const color = colors[index % colors.length];
 
             return (
@@ -119,8 +223,8 @@ const TaskCard: React.FC<CardProps> = ({ tarefa, onEdit, onDelete, onDragStart }
                 key={index}
                 title={nome} 
                 className={`
-                  ${color} rounded-full h-5 w-5 flex items-center justify-center font-bold text-[10px] 
-                  ring-2 ring-white cursor-help hover:z-10 transition-all duration-150
+                  ${color} rounded-full h-6 w-6 flex items-center justify-center font-bold text-xs 
+                  border-2 border-white cursor-help hover:scale-110 transition-transform
                 `}
                 style={{ marginLeft: index > 0 ? '-8px' : '0px' }} 
               >
@@ -138,12 +242,12 @@ const TaskCard: React.FC<CardProps> = ({ tarefa, onEdit, onDelete, onDragStart }
 interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (task: TarefaUI) => void;
-  initialTask: TarefaUI | null;
+  onSubmit: (task: TarefaUIView) => Promise<void>;
+  initialTask: TarefaUIView | null;
 }
 
 const TaskModal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, initialTask }) => {
-  const [taskState, setTaskState] = useState<TarefaUI>({
+  const [taskState, setTaskState] = useState<TarefaUIView>({
     id: '',
     titulo: '',
     descricao: '',
@@ -151,18 +255,19 @@ const TaskModal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, initialTas
     responsavel: [],
     prioridade: 'Média',
     status: 'A Fazer',
-    categorias: []
+    categorias: [],
+    dataCriacao: ''
   });
   
   const [currentResponsible, setCurrentResponsible] = useState('');
   const [currentCategoria, setCurrentCategoria] = useState('');
   const [dataError, setDataError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (initialTask) {
       setTaskState(initialTask);
     } else {
-      // Data padrão: amanhã
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
       setTaskState({
@@ -173,7 +278,8 @@ const TaskModal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, initialTas
         responsavel: [],
         prioridade: 'Média',
         status: 'A Fazer',
-        categorias: []
+        categorias: [],
+        dataCriacao: ''
       });
     }
     setCurrentResponsible('');
@@ -221,15 +327,24 @@ const TaskModal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, initialTas
     const { name, value } = e.target;
     
     if (name === 'data') {
+      const selectedDate = new Date(value);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      if (selectedDate < today) {
+        setDataError('A data não pode ser no passado');
+      } else {
+        setDataError('');
+      }
+      
       setTaskState(prev => ({ ...prev, [name]: value }));
-      setDataError('');
       return;
     }
 
     setTaskState(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!taskState.titulo.trim()) {
@@ -242,8 +357,17 @@ const TaskModal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, initialTas
       return;
     }
 
-    onSubmit(taskState);
-    onClose();
+    if (dataError) {
+      alert("Por favor, corrija os erros antes de salvar.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await onSubmit(taskState);
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -265,8 +389,9 @@ const TaskModal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, initialTas
             </div>
             <button 
               onClick={onClose} 
-              className="text-gray-500 hover:text-gray-800 transition-colors"
+              className="text-gray-500 hover:text-gray-800 transition-colors p-1"
               aria-label="Fechar"
+              disabled={loading}
             >
               <X size={24} />
             </button>
@@ -283,9 +408,10 @@ const TaskModal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, initialTas
                 value={taskState.titulo} 
                 onChange={handleChange} 
                 required 
-                className="w-full border border-gray-300 rounded-md p-2.5 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="Digite o título da tarefa"
                 maxLength={100}
+                disabled={loading}
               />
               <div className="flex justify-between text-xs text-gray-500">
                 <span>Obrigatório</span>
@@ -302,10 +428,11 @@ const TaskModal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, initialTas
                 name="descricao" 
                 value={taskState.descricao} 
                 onChange={handleChange} 
-                className="w-full border border-gray-300 rounded-md p-2.5 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 rows={3}
                 placeholder="Descreva a tarefa em detalhes..."
                 maxLength={500}
+                disabled={loading}
               />
               <div className="flex justify-between text-xs text-gray-500">
                 <span>Opcional</span>
@@ -326,20 +453,19 @@ const TaskModal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, initialTas
                   value={taskState.data}
                   onChange={handleChange}
                   required
-                  className={`w-full px-3 py-2.5 border rounded-md focus:ring-blue-500 focus:border-blue-500 ${
+                  className={`w-full px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                     dataError ? 'border-red-300' : 'border-gray-300'
                   }`}
+                  min={new Date().toISOString().split('T')[0]}
+                  disabled={loading}
                 />
                 
-                {/* Mensagens de validação */}
-                <div className="min-h-[20px]">
-                  {dataError ? (
-                    <p className="text-sm text-red-600 flex items-center gap-1">
-                      <AlertCircle size={14} />
-                      {dataError}
-                    </p>
-                  ) : null}
-                </div>
+                {dataError && (
+                  <p className="text-sm text-red-600 flex items-center gap-1">
+                    <AlertCircle size={14} />
+                    {dataError}
+                  </p>
+                )}
               </div>
               
               {/* Prioridade */}
@@ -351,9 +477,10 @@ const TaskModal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, initialTas
                   name="prioridade" 
                   value={taskState.prioridade} 
                   onChange={handleChange} 
-                  className="w-full border border-gray-300 rounded-md p-2.5 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  disabled={loading}
                 >
-                  {PRIORIDADES.map(p => (
+                  {PRIORIDADES_UI.map(p => (
                     <option key={p} value={p}>{p}</option>
                   ))}
                 </select>
@@ -377,15 +504,17 @@ const TaskModal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, initialTas
                         handleAddResponsible();
                       }
                     }}
-                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Digite o nome do responsável"
+                    disabled={loading}
                   />
                 </div>
                 <button 
                   type="button" 
                   onClick={handleAddResponsible}
-                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors flex items-center gap-1"
+                  className="px-4 py-2.5 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors flex items-center gap-1 font-medium"
                   aria-label="Adicionar responsável"
+                  disabled={loading}
                 >
                   <Plus size={16} />
                   <span className="hidden sm:inline">Adicionar</span>
@@ -399,7 +528,7 @@ const TaskModal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, initialTas
                     {taskState.responsavel.map((name, index) => (
                       <div 
                         key={index} 
-                        className="flex items-center gap-1 px-3 py-1 bg-blue-50 text-blue-800 rounded-full text-sm font-medium"
+                        className="flex items-center gap-1 px-3 py-1.5 bg-blue-50 text-blue-800 rounded-lg text-sm font-medium border border-blue-200"
                       >
                         <User size={12} />
                         <span>{name}</span>
@@ -408,6 +537,7 @@ const TaskModal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, initialTas
                           onClick={() => handleRemoveResponsible(name)} 
                           className="text-blue-600 hover:text-blue-800 ml-1"
                           aria-label={`Remover ${name}`}
+                          disabled={loading}
                         >
                           <X size={12} />
                         </button>
@@ -435,16 +565,18 @@ const TaskModal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, initialTas
                         handleAddCategoria();
                       }
                     }}
-                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Ex: Planejamento, Reunião"
                     maxLength={50}
+                    disabled={loading}
                   />
                 </div>
                 <button 
                   type="button" 
                   onClick={handleAddCategoria}
-                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors flex items-center gap-1"
+                  className="px-4 py-2.5 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors flex items-center gap-1 font-medium"
                   aria-label="Adicionar categoria"
+                  disabled={loading}
                 >
                   <Plus size={16} />
                   <span className="hidden sm:inline">Adicionar</span>
@@ -458,7 +590,7 @@ const TaskModal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, initialTas
                     {taskState.categorias.map((cat, index) => (
                       <div 
                         key={index} 
-                        className="flex items-center gap-1 px-3 py-1 bg-green-50 text-green-800 rounded-full text-sm font-medium"
+                        className="flex items-center gap-1 px-3 py-1.5 bg-green-50 text-green-800 rounded-lg text-sm font-medium border border-green-200"
                       >
                         <Tag size={12} />
                         <span>{cat}</span>
@@ -467,6 +599,7 @@ const TaskModal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, initialTas
                           onClick={() => handleRemoveCategoria(cat)} 
                           className="text-green-600 hover:text-green-800 ml-1"
                           aria-label={`Remover ${cat}`}
+                          disabled={loading}
                         >
                           <X size={12} />
                         </button>
@@ -486,7 +619,8 @@ const TaskModal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, initialTas
                 name="status" 
                 value={taskState.status} 
                 onChange={handleChange} 
-                className="w-full border border-gray-300 rounded-md p-2.5 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                disabled={loading}
               >
                 {STATUS_COLUMNS.map(c => (
                   <option key={c.name} value={c.name}>{c.name}</option>
@@ -499,15 +633,27 @@ const TaskModal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, initialTas
               <button 
                 type="button" 
                 onClick={onClose} 
-                className="px-5 py-2.5 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors font-medium"
+                className="px-5 py-2.5 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                disabled={loading}
               >
                 Cancelar
               </button>
               <button 
                 type="submit" 
-                className="px-5 py-2.5 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 transition-colors shadow-sm"
+                className="px-5 py-2.5 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-sm flex items-center gap-2 min-w-[120px] justify-center"
+                disabled={loading}
               >
-                {initialTask ? 'Salvar Alterações' : 'Criar Tarefa'}
+                {loading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Salvando...</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle size={16} />
+                    <span>{initialTask ? 'Salvar' : 'Criar Tarefa'}</span>
+                  </>
+                )}
               </button>
             </div>
           </form>
@@ -517,133 +663,115 @@ const TaskModal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, initialTas
   );
 };
 
-// Componente principal
+// Componente principal CORRIGIDO
 export default function Tarefas() {
-  const { data, atualizarTarefas } = useDashConect();
-  const [tasks, setTasks] = useState<TarefaUI[]>([]);
+  const { 
+    data, 
+    atualizarTarefas,
+    removerTarefa,
+    sincronizarDashboard
+  } = useDashConect();
+  
+  const [tasks, setTasks] = useState<TarefaUIView[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingTask, setEditingTask] = useState<TarefaUI | null>(null);
+  const [editingTask, setEditingTask] = useState<TarefaUIView | null>(null);
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-  // Carregar dados do backend
+  // Refs para controlar loops
+  const hasLoaded = useRef(false);
+  const isFetching = useRef(false);
+
+  // Carregar dados do backend - CORREÇÃO DO LOOP
   useEffect(() => {
     const carregarDados = async () => {
+      // Prevenir múltiplas chamadas simultâneas
+      if (isFetching.current || hasLoaded.current) {
+        return;
+      }
+
+      isFetching.current = true;
+      setLoading(true);
+      
       try {
-        setLoading(true);
+        console.log("📡 Buscando tarefas do servidor...");
         const tarefasData = await apiService.tarefas.getAll();
         
-        const tarefasUI: TarefaUI[] = tarefasData.map((t: ApiTarefa) => {
-          // Converter categorias para array
-          let categoriasArray: string[] = [];
-          if (Array.isArray(t.categorias)) {
-            categoriasArray = t.categorias;
-          } else if (typeof t.categorias === 'string' && t.categorias) {
-            categoriasArray = t.categorias.split(',').map((c: string) => c.trim()).filter((c: string) => c);
-          }
-          
-          // Converter responsavel para array
-          let responsavelArray: string[] = [];
-          if (Array.isArray(t.responsavel)) {
-            responsavelArray = t.responsavel;
-          } else if (typeof t.responsavel === 'string' && t.responsavel) {
-            try {
-              // Tentar parsear como JSON
-              const parsed = JSON.parse(t.responsavel);
-              responsavelArray = Array.isArray(parsed) ? parsed : [t.responsavel];
-            } catch {
-              // Se falhar, tratar como string simples
-              responsavelArray = t.responsavel ? [t.responsavel] : [];
-            }
-          }
-          
-          // Converter status para formato UI
-          let statusUI: 'A Fazer' | 'Em andamento' | 'Concluído' = 'A Fazer';
-          if (t.status === 'concluido' || t.status === 'Concluído') {
-            statusUI = 'Concluído';
-          } else if (t.status === 'andamento' || t.status === 'Em andamento') {
-            statusUI = 'Em andamento';
-          }
-          
-          // Converter prioridade para formato UI
-          let prioridadeUI: 'Baixa' | 'Média' | 'Alta' = 'Média';
-          if (t.prioridade === 'alta' || t.prioridade === 'Alta') {
-            prioridadeUI = 'Alta';
-          } else if (t.prioridade === 'baixa' || t.prioridade === 'Baixa') {
-            prioridadeUI = 'Baixa';
-          }
-          
-          return {
-            id: t.id.toString(),
-            titulo: t.titulo || '',
-            descricao: t.descricao || '',
-            data: t.data || new Date().toISOString().split('T')[0],
-            responsavel: responsavelArray,
-            prioridade: prioridadeUI,
-            status: statusUI,
-            categorias: categoriasArray,
-            dataCriacao: new Date(t.data_criacao || Date.now()),
-            progresso: t.progresso || 0
-          };
-        });
+        console.log(`✅ ${tarefasData.length} tarefas recebidas do servidor`);
+        
+        // Converter dados da API para UI
+        const tarefasUI: TarefaUIView[] = tarefasData.map((t: any) => converterParaUI(t));
         
         setTasks(tarefasUI);
+        hasLoaded.current = true;
         
-        // Converter para o formato do contexto
-        const tarefasContexto = tarefasUI.map(t => ({
-          id: t.id,
-          titulo: t.titulo,
-          descricao: t.descricao || '',
-          status: (t.status === 'Concluído' ? 'concluido' : 
-                  t.status === 'Em andamento' ? 'andamento' : 'pendente') as "pendente" | "andamento" | "concluido",
-          responsavel: t.responsavel.join(', '),
-          prioridade: (t.prioridade.toLowerCase() as "baixa" | "media" | "alta"),
-          dataCriacao: t.dataCriacao || new Date(),
-          dataPrazo: new Date(t.data),
-          progresso: t.status === 'Concluído' ? 100 : t.status === 'Em andamento' ? 50 : 0,
-          categorias: t.categorias
-        }));
-        
-        atualizarTarefas(tarefasContexto);
-      } catch (error) {
-        console.error('Erro ao carregar tarefas:', error);
-        // Usar dados do contexto como fallback
-        const contextData: TarefaUI[] = data.tarefas.map((t: any) => {
-          let statusUI: 'A Fazer' | 'Em andamento' | 'Concluído' = 'A Fazer';
-          if (t.status === 'concluido') {
-            statusUI = 'Concluído';
-          } else if (t.status === 'andamento') {
-            statusUI = 'Em andamento';
-          }
-          
-          let prioridadeUI: 'Baixa' | 'Média' | 'Alta' = 'Média';
-          if (t.prioridade === 'alta') {
-            prioridadeUI = 'Alta';
-          } else if (t.prioridade === 'baixa') {
-            prioridadeUI = 'Baixa';
-          }
+        // Atualizar contexto do dashboard (formato correto para dashconect)
+        const tarefasContexto = tarefasUI.map(t => {
+          // Converter status UI para API
+          let statusAPI: 'pendente' | 'andamento' | 'concluido' = 'pendente';
+          if (t.status === 'Concluído') statusAPI = 'concluido';
+          else if (t.status === 'Em andamento') statusAPI = 'andamento';
           
           return {
             id: t.id,
             titulo: t.titulo,
             descricao: t.descricao || '',
-            data: t.dataPrazo ? t.dataPrazo.toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-            responsavel: t.responsavel ? [t.responsavel] : [],
-            prioridade: prioridadeUI,
-            status: statusUI,
-            categorias: t.categorias || [],
-            dataCriacao: t.dataCriacao || new Date(),
-            progresso: t.progresso || 0
+            status: statusAPI,
+            responsavel: t.responsavel.join(', '),
+            prioridade: (t.prioridade.toLowerCase() as "baixa" | "media" | "alta"),
+            dataCriacao: t.dataCriacao,
+            dataPrazo: t.data,
+            progresso: t.progresso || 0,
+            categorias: t.categorias
           };
         });
-        setTasks(contextData);
+        
+        atualizarTarefas(tarefasContexto);
+        
+      } catch (error) {
+        console.error('❌ Erro ao carregar tarefas:', error);
+        hasLoaded.current = true;
+        
+        // Usar dados do contexto como fallback apenas uma vez
+        if (data?.tarefas?.length > 0 && tasks.length === 0) {
+          const contextData: TarefaUIView[] = data.tarefas.map((t: any) => {
+            // Converter do formato do contexto para TarefaAPI temporário
+            const tempTarefaAPI = {
+              id: parseInt(t.id),
+              titulo: t.titulo,
+              descricao: t.descricao,
+              data_prazo: t.dataPrazo || new Date().toISOString().split('T')[0],
+              prioridade: (t.prioridade as 'baixa' | 'media' | 'alta') || 'media',
+              status: (t.status as 'pendente' | 'andamento' | 'concluido') || 'pendente',
+              data_criacao: t.dataCriacao || '',
+              responsavel: t.responsavel ? t.responsavel.split(',').map((r: string) => r.trim()).filter((r: string) => r) : [],
+              categorias: t.categorias || [],
+              usuario_id: 1 // valor temporário
+            };
+            
+            return converterParaUI(tempTarefaAPI);
+          });
+          setTasks(contextData);
+        }
       } finally {
         setLoading(false);
+        setTimeout(() => {
+          isFetching.current = false;
+        }, 1000);
       }
     };
 
-    carregarDados();
-  }, [data.tarefas, atualizarTarefas]);
+    // Carregar dados apenas uma vez
+    if (!hasLoaded.current) {
+      carregarDados();
+    }
+
+    // Cleanup
+    return () => {
+      hasLoaded.current = false;
+    };
+  }, []); // Array vazio para executar apenas uma vez
 
   // Funções para arrastar tarefas
   const handleDragStart = (taskId: string) => {
@@ -652,49 +780,51 @@ export default function Tarefas() {
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
-    e.currentTarget.classList.add('bg-gray-200');
+    e.currentTarget.classList.add('bg-blue-50');
   };
 
   const handleDragLeave = (e: React.DragEvent) => {
-    e.currentTarget.classList.remove('bg-gray-200');
+    e.currentTarget.classList.remove('bg-blue-50');
   };
 
-  const handleDrop = async (e: React.DragEvent, newStatus: TarefaUI['status']) => {
+  const handleDrop = async (e: React.DragEvent, newStatus: TarefaUIView['status']) => {
     e.preventDefault();
-    e.currentTarget.classList.remove('bg-gray-200');
+    e.currentTarget.classList.remove('bg-blue-50');
     
     if (draggedTaskId) {
       try {
-        // Converter status para formato API
-        let statusAPI = newStatus;
-        if (newStatus === 'Concluído') statusAPI = 'Concluído';
-        else if (newStatus === 'Em andamento') statusAPI = 'Em andamento';
-        else statusAPI = 'A Fazer';
+        setSaving(true);
         
-        // Atualizar no backend
+        // Encontrar a tarefa a ser atualizada
         const taskToUpdate = tasks.find(t => t.id === draggedTaskId);
         if (taskToUpdate) {
-          await apiService.tarefas.update(parseInt(draggedTaskId), {
-            titulo: taskToUpdate.titulo,
-            descricao: taskToUpdate.descricao,
-            data: taskToUpdate.data,
-            responsavel: JSON.stringify(taskToUpdate.responsavel),
-            prioridade: taskToUpdate.prioridade,
-            status: statusAPI,
-            categorias: taskToUpdate.categorias.join(', ')
-          });
+          // Preparar dados atualizados
+          const tarefaAtualizada: TarefaUIView = {
+            ...taskToUpdate,
+            status: newStatus
+          };
+          
+          const dadosAPI = converterParaAPI(tarefaAtualizada);
+          
+          // Atualizar no backend
+          await apiService.tarefas.update(parseInt(draggedTaskId), dadosAPI);
           
           // Atualizar localmente
           setTasks(prevTasks => 
             prevTasks.map(task => 
-              task.id === draggedTaskId ? { ...task, status: newStatus } : task
+              task.id === draggedTaskId ? tarefaAtualizada : task
             )
           );
+          
+          // SINCRONIZAR COM DASHBOARD
+          await sincronizarDashboard('tarefas');
         }
         setDraggedTaskId(null);
       } catch (error) {
         console.error('Erro ao atualizar status:', error);
         alert('Erro ao atualizar status da tarefa');
+      } finally {
+        setSaving(false);
       }
     }
   };
@@ -704,71 +834,9 @@ export default function Tarefas() {
     setIsModalOpen(true);
   };
 
-  const handleEditTask = (task: TarefaUI) => {
+  const handleEditTask = (task: TarefaUIView) => {
     setEditingTask(task);
     setIsModalOpen(true);
-  };
-
-  const handleSaveTask = async (taskData: TarefaUI) => {
-    try {
-      // Converter responsavel para string JSON
-      const responsavelStr = JSON.stringify(taskData.responsavel);
-      
-      if (editingTask) {
-        // Atualizar tarefa existente
-        await apiService.tarefas.update(parseInt(taskData.id), {
-          titulo: taskData.titulo,
-          descricao: taskData.descricao,
-          data: taskData.data,
-          responsavel: responsavelStr,
-          prioridade: taskData.prioridade,
-          status: taskData.status,
-          categorias: taskData.categorias.join(', ')
-        });
-        
-        setTasks(prev => prev.map(t => t.id === taskData.id ? taskData : t));
-      } else {
-        // Criar nova tarefa
-        const novaTarefa = await apiService.tarefas.create({
-          titulo: taskData.titulo,
-          descricao: taskData.descricao,
-          data: taskData.data,
-          responsavel: responsavelStr,
-          prioridade: taskData.prioridade,
-          status: taskData.status,
-          categorias: taskData.categorias.join(', ')
-        });
-        
-        const novaTarefaUI: TarefaUI = {
-          id: novaTarefa.id.toString(),
-          titulo: novaTarefa.titulo,
-          descricao: novaTarefa.descricao || '',
-          data: novaTarefa.data || new Date().toISOString().split('T')[0],
-          responsavel: novaTarefa.responsavel ? 
-            (Array.isArray(novaTarefa.responsavel) ? 
-              novaTarefa.responsavel : 
-              (typeof novaTarefa.responsavel === 'string' ? 
-                JSON.parse(novaTarefa.responsavel) : 
-                [])) : [],
-          prioridade: (novaTarefa.prioridade as 'Baixa' | 'Média' | 'Alta') || 'Média',
-          status: (novaTarefa.status as 'A Fazer' | 'Em andamento' | 'Concluído') || 'A Fazer',
-          categorias: novaTarefa.categorias ? 
-            (Array.isArray(novaTarefa.categorias) ? 
-              novaTarefa.categorias : 
-              novaTarefa.categorias.split(',').map((c: string) => c.trim())) : [],
-          dataCriacao: new Date(novaTarefa.data_criacao || Date.now()),
-          progresso: novaTarefa.progresso || 0
-        };
-        
-        setTasks(prev => [novaTarefaUI, ...prev]);
-      }
-      
-      setEditingTask(null);
-      setIsModalOpen(false);
-    } catch (error) {
-      console.error('Erro ao salvar tarefa:', error);
-      alert('Erro ao salvar tarefa. Tente novamente.');
-    }
   };
 
   const handleDeleteTask = async (id: string) => {
@@ -777,18 +845,85 @@ export default function Tarefas() {
     }
 
     try {
+      setSaving(true);
+      // 1. Excluir do servidor
       await apiService.tarefas.delete(parseInt(id));
+      
+      // 2. Atualizar lista local
       setTasks(prev => prev.filter(t => t.id !== id));
+      
+      // 3. Atualizar contexto
+      removerTarefa(id);
+      
+      // 4. SINCRONIZAR COM DASHBOARD
+      await sincronizarDashboard('tarefas');
+      
+      alert('✅ Tarefa excluída com sucesso!');
     } catch (error) {
-      console.error('Erro ao excluir tarefa:', error);
-      alert('Erro ao excluir tarefa. Tente novamente.');
+      console.error('❌ Erro ao excluir tarefa:', error);
+      alert('❌ Erro ao excluir tarefa. Tente novamente.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveTask = async (taskData: TarefaUIView) => {
+    try {
+      setSaving(true);
+      console.log('💾 Salvando tarefa:', taskData);
+      
+      const dadosAPI = converterParaAPI(taskData);
+      
+      console.log('📤 Dados para API:', dadosAPI);
+
+      if (editingTask) {
+        // Atualizar tarefa existente
+        console.log(`🔄 Atualizando tarefa ID: ${taskData.id}`);
+        const resposta = await apiService.tarefas.update(parseInt(taskData.id), dadosAPI);
+        
+        console.log('📥 Resposta da API:', resposta);
+        
+        // Converter resposta para UI e atualizar
+        const tarefaAtualizada = converterParaUI(resposta);
+        
+        // Atualizar localmente
+        setTasks(prev => prev.map(t => t.id === taskData.id ? tarefaAtualizada : t));
+        
+      } else {
+        // Criar nova tarefa
+        console.log('🆕 Criando nova tarefa');
+        const novaTarefaAPI = await apiService.tarefas.create(dadosAPI);
+        
+        console.log('✅ Tarefa criada no servidor:', novaTarefaAPI);
+        
+        // Converter resposta para UI
+        const novaTarefaUI = converterParaUI(novaTarefaAPI);
+        
+        // Adicionar à lista local
+        setTasks(prev => [novaTarefaUI, ...prev]);
+      }
+      
+      // SINCRONIZAR COM DASHBOARD
+      await sincronizarDashboard('tarefas');
+      
+      console.log('✅ Tarefa salva com sucesso!');
+      setEditingTask(null);
+      setIsModalOpen(false);
+      
+      alert('✅ Tarefa salva com sucesso!');
+      
+    } catch (error: any) {
+      console.error('❌ Erro ao salvar tarefa:', error);
+      alert(`❌ Erro ao salvar tarefa: ${error.message || 'Tente novamente'}`);
+    } finally {
+      setSaving(false);
     }
   };
 
   return (
     <div className="min-h-screen bg-gray-50 font-inter">
       {/* Cabeçalho azul padronizado */}
-      <div className="bg-blue-600 text-white w-full">
+      <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white w-full">
         <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-8">
           <div className="flex items-center gap-3 mb-2">
             <FaTasks className="w-8 h-8 text-white" />
@@ -809,18 +944,26 @@ export default function Tarefas() {
       <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-8">
         <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
           {/* Caminho de navegação */}
-          <div className="px-6 pt-6 pb-4 border-b border-gray-200">
+          <div className="px-6 pt-6 pb-4 border-b border-gray-200 bg-gray-50">
             <p className="text-sm text-gray-500">
-              <span className="text-[#114A6D] font-medium">Dashboard</span> &gt; Gestão de Tarefas
+              <span className="text-blue-600 font-medium">Dashboard</span> &gt; Gestão de Tarefas
+            </p>
+            <p className="text-xs text-gray-400 mt-1">
+              Arraste e solte para alterar o status das tarefas
             </p>
           </div>
 
           {/* Conteúdo principal */}
           <div className="p-6">
-            <div className="mb-6 flex justify-end">
+            <div className="mb-6 flex justify-between items-center">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-800">Kanban de Tarefas</h2>
+                <p className="text-sm text-gray-500">Total: {tasks.length} tarefas</p>
+              </div>
               <button
                 onClick={handleNewTask}
-                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-md font-semibold hover:bg-blue-700 transition duration-150 shadow-md"
+                className="flex items-center space-x-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition duration-150 shadow-md hover:shadow-lg"
+                disabled={saving || loading}
               >
                 <Plus size={18} />
                 <span>Nova Tarefa</span>
@@ -828,8 +971,9 @@ export default function Tarefas() {
             </div>
 
             {loading ? (
-              <div className="text-center py-8">
-                <p className="text-gray-500">Carregando tarefas...</p>
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p className="text-gray-600">Carregando tarefas...</p>
               </div>
             ) : (
               <div className="flex space-x-6 overflow-x-auto pb-4">
@@ -839,7 +983,7 @@ export default function Tarefas() {
                     className="flex-shrink-0 w-80"
                     onDragOver={handleDragOver}
                     onDragLeave={handleDragLeave}
-                    onDrop={(e) => handleDrop(e, column.name as TarefaUI['status'])}
+                    onDrop={(e) => handleDrop(e, column.name as TarefaUIView['status'])}
                   >
                     <div className={`flex items-center justify-between p-3 rounded-t-lg text-white ${column.color}`}>
                       <h3 className="font-semibold text-base">{column.name}</h3>
@@ -848,7 +992,7 @@ export default function Tarefas() {
                       </span>
                     </div>
 
-                    <div className="bg-gray-100 p-3 rounded-b-lg min-h-64 max-h-[70vh] overflow-y-auto transition-colors duration-200">
+                    <div className="bg-gray-50 p-3 rounded-b-lg min-h-64 max-h-[70vh] overflow-y-auto transition-colors duration-200 border border-gray-200 border-t-0">
                       {tasks
                         .filter(t => t.status === column.name)
                         .map(tarefa => (

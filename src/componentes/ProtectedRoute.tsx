@@ -1,4 +1,3 @@
-// frontend/src/components/ProtectedRoute.tsx
 import { Navigate } from 'react-router-dom';
 import { authService } from '../services/authService';
 
